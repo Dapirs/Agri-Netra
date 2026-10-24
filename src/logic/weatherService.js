@@ -7,7 +7,11 @@
  * to 1 hour only when a later request fails (offline/network fallback).
  *
  * Returns: { temp_c, humidity, wind_ms, solar_rad, weather_cached }
+ *   solar_rad is an estimated 24 h mean (W/m²). temp_c, humidity and wind_ms
+ *   are current readings used as stand-ins for daily means (approximation).
  */
+
+import { extraterrestrialRadiation } from './et0Calculator.js';
 
 const CACHE_KEY = 'gaslighters_weather_cache';
 const CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
@@ -57,14 +61,21 @@ function setCachedWeather(lat, lon, data) {
 }
 
 /**
- * Estimate solar radiation (W/m²) from cloud cover percentage.
- * OpenWeatherMap does not provide a direct solar-radiation field, so
- * we approximate using a clear-sky constant (~1000 W/m²) reduced
- * linearly by cloud cover.
+ * Estimate daily-mean solar radiation (W/m²) from cloud cover.
+ * OpenWeatherMap has no solar-radiation field, so we use the FAO-56
+ * Ångström–Prescott form Rs = (0.25 + 0.50·n/N)·Ra, with the clear-sky
+ * fraction (1 − cloud) standing in for the sunshine fraction n/N.
+ * Ra (top-of-atmosphere radiation for this latitude and day) keeps the
+ * result physically possible. Returned as a 24 h mean in W/m², which is
+ * what calculateET0 expects.
  */
-function estimateSolarRadiation(cloudPercent) {
-    const CLEAR_SKY_RAD = 1000; // W/m² at solar noon, clear sky
-    return Math.round(CLEAR_SKY_RAD * (1 - cloudPercent / 100));
+function estimateSolarRadiation(cloudPercent, lat) {
+    const now = new Date();
+    const doy = Math.floor((now - new Date(now.getFullYear(), 0, 0)) / 86_400_000);
+    const Ra = extraterrestrialRadiation((Math.PI / 180) * lat, doy); // MJ/m²/day
+    const clearFraction = 1 - cloudPercent / 100;
+    const Rs = (0.25 + 0.5 * clearFraction) * Ra; // MJ/m²/day
+    return Math.round(Rs / 0.0864); // → 24 h mean W/m²
 }
 
 /**
@@ -96,7 +107,7 @@ export async function getWeather(lat, lon) {
             temp_c: json.main.temp,
             humidity: json.main.humidity,
             wind_ms: json.wind.speed,
-            solar_rad: estimateSolarRadiation(json.clouds?.all ?? 0),
+            solar_rad: estimateSolarRadiation(json.clouds?.all ?? 0, lat),
         };
 
         // 2. Cache fresh result for offline/network-failure fallback

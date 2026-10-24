@@ -25,7 +25,7 @@ const ALBEDO = 0.23;               // grass reference crop
  * FAO-56 Eq. 11
  */
 function eSat(T) {
-  return 0.6108 * Math.exp((17.27 * T) / (T + 237.3));
+    return 0.6108 * Math.exp((17.27 * T) / (T + 237.3));
 }
 
 /**
@@ -33,7 +33,7 @@ function eSat(T) {
  * FAO-56 Eq. 13
  */
 function delta(T) {
-  return (4098 * eSat(T)) / Math.pow(T + 237.3, 2);
+    return (4098 * eSat(T)) / Math.pow(T + 237.3, 2);
 }
 
 /**
@@ -41,7 +41,7 @@ function delta(T) {
  * FAO-56 Eq. 7
  */
 function atmPressure(elevation) {
-  return 101.3 * Math.pow((293 - 0.0065 * elevation) / 293, 5.26);
+    return 101.3 * Math.pow((293 - 0.0065 * elevation) / 293, 5.26);
 }
 
 /**
@@ -49,7 +49,7 @@ function atmPressure(elevation) {
  * FAO-56 Eq. 8
  */
 function psychrometricConstant(pressure) {
-  return 0.000665 * pressure;
+    return 0.000665 * pressure;
 }
 
 /**
@@ -57,7 +57,7 @@ function psychrometricConstant(pressure) {
  * FAO-56 Eq. 23
  */
 function invRelDistEarthSun(doy) {
-  return 1 + 0.033 * Math.cos((2 * Math.PI * doy) / 365);
+    return 1 + 0.033 * Math.cos((2 * Math.PI * doy) / 365);
 }
 
 /**
@@ -65,7 +65,7 @@ function invRelDistEarthSun(doy) {
  * FAO-56 Eq. 24
  */
 function solarDeclination(doy) {
-  return 0.409 * Math.sin((2 * Math.PI * doy) / 365 - 1.39);
+    return 0.409 * Math.sin((2 * Math.PI * doy) / 365 - 1.39);
 }
 
 /**
@@ -73,27 +73,27 @@ function solarDeclination(doy) {
  * FAO-56 Eq. 25
  */
 function sunsetHourAngle(latRad, declination) {
-  const x = -Math.tan(latRad) * Math.tan(declination);
-  // Clamp to [-1, 1] for polar edge cases
-  return Math.acos(Math.max(-1, Math.min(1, x)));
+    const x = -Math.tan(latRad) * Math.tan(declination);
+    // Clamp to [-1, 1] for polar edge cases
+    return Math.acos(Math.max(-1, Math.min(1, x)));
 }
 
 /**
  * Extraterrestrial radiation Ra (MJ / m² / day).
  * FAO-56 Eq. 21
  */
-function extraterrestrialRadiation(latRad, doy) {
-  const dr = invRelDistEarthSun(doy);
-  const dec = solarDeclination(doy);
-  const ws = sunsetHourAngle(latRad, dec);
+export function extraterrestrialRadiation(latRad, doy) {
+    const dr = invRelDistEarthSun(doy);
+    const dec = solarDeclination(doy);
+    const ws = sunsetHourAngle(latRad, dec);
 
-  return (
-    ((24 * 60) / Math.PI) *
-    SOLAR_CONSTANT *
-    dr *
-    (ws * Math.sin(latRad) * Math.sin(dec) +
-      Math.cos(latRad) * Math.cos(dec) * Math.sin(ws))
-  );
+    return (
+        ((24 * 60) / Math.PI) *
+        SOLAR_CONSTANT *
+        dr *
+        (ws * Math.sin(latRad) * Math.sin(dec) +
+            Math.cos(latRad) * Math.cos(dec) * Math.sin(ws))
+    );
 }
 
 /**
@@ -101,7 +101,7 @@ function extraterrestrialRadiation(latRad, doy) {
  * FAO-56 Eq. 37 (simplified)
  */
 function clearSkyRadiation(elevation, Ra) {
-  return (0.75 + 2e-5 * elevation) * Ra;
+    return (0.75 + 2e-5 * elevation) * Ra;
 }
 
 /* ────────────────────────────────────────────────────── */
@@ -113,7 +113,8 @@ function clearSkyRadiation(elevation, Ra) {
  * @param {number}  params.temp_c    – Mean daily temperature (°C)
  * @param {number}  params.humidity  – Relative humidity (%)
  * @param {number}  params.wind_ms   – Wind speed at 2 m height (m/s)
- * @param {number}  params.solar_rad – Incoming solar radiation (W/m²)
+ * @param {number}  params.solar_rad – Incoming solar radiation, 24 h MEAN in W/m²
+ *                                     (not a noon peak value)
  * @param {number}  params.elevation – Station elevation above sea level (m)
  * @param {number}  params.doy       – Day of year (1–366)
  * @param {number} [params.lat]      – Latitude in decimal degrees (needed
@@ -121,60 +122,61 @@ function clearSkyRadiation(elevation, Ra) {
  * @returns {number} ET₀ in mm/day (≥ 0)
  */
 export function calculateET0({
-  temp_c,
-  humidity,
-  wind_ms,
-  solar_rad,
-  elevation = 0,
-  doy,
-  lat = 0,
-}) {
-  /* 1. Convert inputs --------------------------------------------------- */
-  const latRad = (Math.PI / 180) * lat;
+                                 temp_c,
+                                 humidity,
+                                 wind_ms,
+                                 solar_rad,
+                                 elevation = 0,
+                                 doy,
+                                 lat = 0,
+                             }) {
+    /* 1. Convert inputs --------------------------------------------------- */
+    const latRad = (Math.PI / 180) * lat;
 
-  // Convert solar radiation from W/m² (instantaneous) to MJ/m²/day
-  // Standard conversion: 1 W/m² mean over 24 h = 0.0864 MJ/m²/day
-  const Rs = solar_rad * 0.0864;
+    // Convert 24 h mean solar radiation from W/m² to MJ/m²/day
+    // (1 W/m² sustained for 24 h = 0.0864 MJ/m²/day). An instantaneous noon
+    // value must not be passed here: it overstates daily radiation 3-4x.
+    const Rs = solar_rad * 0.0864;
 
-  /* 2. Atmospheric & vapour-pressure parameters ------------------------- */
-  const P = atmPressure(elevation);                // kPa
-  const gamma = psychrometricConstant(P);          // kPa/°C
-  const es = eSat(temp_c);                         // kPa
-  const ea = (humidity / 100) * es;                // kPa  (actual vapour pressure)
-  const D = delta(temp_c);                         // kPa/°C  (slope Δ)
+    /* 2. Atmospheric & vapour-pressure parameters ------------------------- */
+    const P = atmPressure(elevation);                // kPa
+    const gamma = psychrometricConstant(P);          // kPa/°C
+    const es = eSat(temp_c);                         // kPa
+    const ea = (humidity / 100) * es;                // kPa  (actual vapour pressure)
+    const D = delta(temp_c);                         // kPa/°C  (slope Δ)
 
-  /* 3. Radiation terms -------------------------------------------------- */
-  const Ra = extraterrestrialRadiation(latRad, doy);
-  const Rso = clearSkyRadiation(elevation, Ra);
+    /* 3. Radiation terms -------------------------------------------------- */
+    const Ra = extraterrestrialRadiation(latRad, doy);
+    const Rso = clearSkyRadiation(elevation, Ra);
 
-  // Net shortwave radiation (FAO-56 Eq. 38)
-  const Rns = (1 - ALBEDO) * Rs;
+    // Net shortwave radiation (FAO-56 Eq. 38)
+    const Rns = (1 - ALBEDO) * Rs;
 
-  // Relative shortwave radiation ratio, clamped to [0.25, 1]
-  const RsOverRso = Rso > 0 ? Math.min(Rs / Rso, 1) : 0.5;
+    // Relative shortwave radiation ratio, clamped to [0.25, 1]
+    const RsOverRso = Rso > 0 ? Math.min(Rs / Rso, 1) : 0.5;
 
-  // Net longwave radiation (FAO-56 Eq. 39)
-  // Using single temperature (Tmin ≈ Tmax ≈ temp_c for daily mean input)
-  const TK4 = STEFAN_BOLTZMANN * Math.pow(temp_c + 273.16, 4);
-  const Rnl = TK4 * (0.34 - 0.14 * Math.sqrt(ea)) * (1.35 * RsOverRso - 0.35);
+    // Net longwave radiation (FAO-56 Eq. 39)
+    // Using single temperature (Tmin ≈ Tmax ≈ temp_c for daily mean input)
+    const TK4 = STEFAN_BOLTZMANN * Math.pow(temp_c + 273.16, 4);
+    const Rnl = TK4 * (0.34 - 0.14 * Math.sqrt(ea)) * (1.35 * RsOverRso - 0.35);
 
-  // Net radiation (FAO-56 Eq. 40)
-  const Rn = Rns - Rnl;
+    // Net radiation (FAO-56 Eq. 40)
+    const Rn = Rns - Rnl;
 
-  // Soil heat flux G ≈ 0 for daily time step (FAO-56 §4.1)
-  const G = 0;
+    // Soil heat flux G ≈ 0 for daily time step (FAO-56 §4.1)
+    const G = 0;
 
-  /* 4. FAO-56 Penman-Monteith equation (Eq. 6) ------------------------- */
-  const numerator =
-    0.408 * D * (Rn - G) +
-    gamma * (900 / (temp_c + 273)) * wind_ms * (es - ea);
+    /* 4. FAO-56 Penman-Monteith equation (Eq. 6) ------------------------- */
+    const numerator =
+        0.408 * D * (Rn - G) +
+        gamma * (900 / (temp_c + 273)) * wind_ms * (es - ea);
 
-  const denominator = D + gamma * (1 + 0.34 * wind_ms);
+    const denominator = D + gamma * (1 + 0.34 * wind_ms);
 
-  const ET0 = numerator / denominator;
+    const ET0 = numerator / denominator;
 
-  // ET₀ cannot be negative in physical terms
-  return Math.max(0, parseFloat(ET0.toFixed(2)));
+    // ET₀ cannot be negative in physical terms
+    return Math.max(0, parseFloat(ET0.toFixed(2)));
 }
 
 export default calculateET0;
