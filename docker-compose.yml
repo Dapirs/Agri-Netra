@@ -1,0 +1,25 @@
+services:
+  weather-api:
+    build:
+      context: .
+      dockerfile: server/Dockerfile
+    environment:
+      OPENWEATHER_API_KEY: ${OPENWEATHER_API_KEY:?Create a .env file with OPENWEATHER_API_KEY=your-key (see .env.example)}
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/healthz').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+    restart: unless-stopped
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    depends_on:
+      weather-api:
+        condition: service_healthy
+    restart: unless-stopped

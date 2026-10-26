@@ -17,7 +17,7 @@ cd Gaslighters
 npm install
 ```
 
-Weather requests go through the serverless proxy in api/weather.js, which reads OPENWEATHER_API_KEY from the server environment. Never put the key in client code. For local development, link the project (vercel link), add the key as a Development variable (vercel env add OPENWEATHER_API_KEY development), then run vercel dev (port 3000) alongside npm run dev. Vite proxies /api/weather to it.
+Weather requests go through a small server-side proxy (`api/weather.js`), so the OpenWeatherMap key never reaches the browser. Copy `.env.example` to `.env` and add your key, then either run everything in Docker (`docker compose up --build`, then open http://localhost:8080) or locally in two terminals with `npm run dev:api` and `npm run dev`. On Vercel, set `OPENWEATHER_API_KEY` as an environment variable instead.
 
 Put model files in `public/model/`:
 
