@@ -27,8 +27,8 @@ export default defineConfig([
         },
     },
     {
-        // Serverless functions run in Node, not the browser.
-        files: ['api/**/*.js'],
+        // Serverless functions and the weather server run in Node, not the browser.
+        files: ['api/**/*.js', 'server/**/*.js'],
         languageOptions: {
             globals: globals.node,
         },
