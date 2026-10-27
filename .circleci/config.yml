@@ -54,12 +54,15 @@ jobs:
     # A machine executor is a full VM with Docker and docker compose preinstalled.
     machine:
       image: ubuntu-2404:current
+    environment:
+      # Dummy key: nothing in this job calls OpenWeatherMap. docker-compose.yml just
+      # requires it to be non-empty for EVERY docker compose command (up, ps, logs).
+      OPENWEATHER_API_KEY: ci-dummy-key
     steps:
       - checkout
       - run:
           name: Build both images and start the stack
-          # Dummy key: nothing here calls OpenWeatherMap. It only has to be non-empty.
-          command: OPENWEATHER_API_KEY=ci-dummy-key docker compose up -d --build
+          command: docker compose up -d --build
       - run:
           name: Wait for the website to answer
           command: |
