@@ -86,7 +86,28 @@ describe('saveResult', () => {
         expect(history[history.length - 1].id).toBe(entry.id);
     });
 
-    it.todo('does not throw when storage is still full after trimming');
+    it('does not throw, and still returns the entry, when storage is still full after trimming', () => {
+        for (let n = 0; n < 20; n++) saveResult({ n });
+        localStorage.setItem = () => {
+            throw new DOMException('quota', 'QuotaExceededError');
+        };
+
+        let entry;
+        expect(() => {
+            entry = saveResult({ n: 20 });
+        }).not.toThrow();
+        expect(entry).toMatchObject({ n: 20 });
+        expect(typeof entry.id).toBe('string');
+    });
+
+    it('does not throw when the browser blocks storage entirely', () => {
+        localStorage.setItem = () => {
+            throw new DOMException('denied', 'SecurityError');
+        };
+
+        expect(() => saveResult({ n: 1 })).not.toThrow();
+    });
+
     it.todo('stores a compact entry instead of the full treatment text and top-5 list');
 });
 
