@@ -50,10 +50,60 @@ jobs:
           name: Production build
           command: npm run build
 
-# lint, test and build run in parallel on every push and pull request.
+  docker-build:
+    # A machine executor is a full VM with Docker and docker compose preinstalled.
+    machine:
+      image: ubuntu-2404:current
+    steps:
+      - checkout
+      - run:
+          name: Build both images and start the stack
+          # Dummy key: nothing here calls OpenWeatherMap. It only has to be non-empty.
+          command: OPENWEATHER_API_KEY=ci-dummy-key docker compose up -d --build
+      - run:
+          name: Wait for the website to answer
+          command: |
+            for i in $(seq 1 30); do
+              if curl -fs -o /dev/null http://localhost:8080/healthz; then
+                echo "website is up"
+                exit 0
+              fi
+              sleep 2
+            done
+            echo "website did not come up in time"
+            docker compose ps
+            docker compose logs --no-color
+            exit 1
+      - run:
+          name: Smoke tests
+          command: |
+            curl -fsS -o /tmp/index.html http://localhost:8080/
+            grep -q '<div id="root">' /tmp/index.html
+            # Deep links must fall back to index.html (single-page app)
+            curl -fsS -o /tmp/deep.html http://localhost:8080/dashboard/anything
+            grep -q '<div id="root">' /tmp/deep.html
+            # Model files are served
+            curl -fsS -o /dev/null http://localhost:8080/model/model.json
+            curl -fsS -o /dev/null http://localhost:8080/model/class_indices.json
+            # A missing asset is a real 404, not index.html
+            status=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8080/assets/does-not-exist.js)
+            test "$status" = "404" || { echo "expected 404 for a missing asset, got $status"; exit 1; }
+            # nginx forwards /api/ to the weather server, which rejects bad coordinates
+            status=$(curl -s -o /dev/null -w '%{http_code}' 'http://localhost:8080/api/weather?lat=abc&lon=1')
+            test "$status" = "400" || { echo "expected 400 through the proxy, got $status"; exit 1; }
+            echo "smoke tests passed"
+      - run:
+          name: Container status and logs
+          when: always
+          command: |
+            docker compose ps
+            docker compose logs --no-color
+
+# lint, test, build and docker-build run in parallel on every push and pull request.
 workflows:
   ci:
     jobs:
       - lint
       - test
       - build
+      - docker-build
