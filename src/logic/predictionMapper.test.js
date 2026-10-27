@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { readFileSync } from 'node:fs';
+import { DISEASE_LABELS } from '../data/diseaseLabels.js';
 
 // The real class list shipped with the model (index -> label).
 const CLASS_INDICES = JSON.parse(
@@ -64,8 +65,45 @@ describe('initializePredictionLabels', () => {
 
         await mapper.initializePredictionLabels();
 
-        expect(() => mapper.mapPrediction(0, probs(0, 0.9, 65))).not.toThrow();
+        expect(() => mapper.mapPrediction(0, probs(0, 0.9))).not.toThrow();
     });
+
+    it('accepts a different label list when its indices run 0..n-1 without gaps', async () => {
+        vi.stubGlobal('fetch', vi.fn().mockResolvedValue(okJson({ 0: 'A___x', 1: 'B___y', 2: 'C___z' })));
+
+        await mapper.initializePredictionLabels();
+
+        expect(mapper.mapPrediction(1, [0.1, 0.8, 0.1]).topK[0].label).toBe('B___y');
+    });
+
+    it('rejects a label file with a gap in its indices and keeps the built-in labels', async () => {
+        // Without this check, 'C___z' would silently move from class 2 to class 1.
+        vi.stubGlobal('fetch', vi.fn().mockResolvedValue(okJson({ 0: 'A___x', 2: 'C___z' })));
+
+        await mapper.initializePredictionLabels();
+
+        expect(mapper.mapPrediction(0, probs(0, 0.9)).topK[0].label).toBe(LABELS[0]);
+        expect(console.error).toHaveBeenCalled();
+    });
+});
+
+describe('built-in fallback labels', () => {
+    it('are exactly the model classes, same names and same order', () => {
+        expect(DISEASE_LABELS).toEqual(LABELS);
+    });
+
+    // The symptom users saw: with the label file unavailable, some crops lost their advice.
+    it.each(LABELS.map((label, i) => [label, i]))(
+        'still give treatment advice for %s when class_indices.json cannot be loaded',
+        async (_label, i) => {
+            vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 404 }));
+            await mapper.initializePredictionLabels();
+
+            const r = mapper.mapPrediction(i, probs(i, 0.9));
+
+            expect(r.treatment[0]).not.toBe(NO_TREATMENT);
+        }
+    );
 });
 
 describe('mapPrediction', () => {
@@ -129,7 +167,22 @@ describe('mapPrediction', () => {
         }
     );
 
+    it.each([[NaN], [1.5], [undefined], ['3'], [null]])(
+        'rejects %p as a class index',
+        (bad) => {
+            expect(() => mapper.mapPrediction(bad, probs(0, 0.9))).toThrow(RangeError);
+        }
+    );
+
+    it('rejects a probability array that is too short or too long for the label list', () => {
+        expect(() => mapper.mapPrediction(0, probs(0, 0.9, LABELS.length - 1))).toThrow(/out of sync/);
+        expect(() => mapper.mapPrediction(0, probs(0, 0.9, LABELS.length + 1))).toThrow(/out of sync/);
+    });
+
+    it('accepts typed arrays such as the Float32Array a TensorFlow.js model returns', () => {
+        const typed = Float32Array.from(probs(2, 0.9));
+        expect(mapper.mapPrediction(2, typed).topK[0].label).toBe(LABELS[2]);
+    });
+
     it.todo('derives severity from disease progress, not from model confidence');
-    it.todo('fallback labels match the model class list (Pepper classes are named differently)');
-    it.todo('rejects a probability array whose length differs from the label count');
 });
