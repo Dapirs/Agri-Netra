@@ -27,24 +27,29 @@ let runtimeLabels = [...DISEASE_LABELS];
  * Healthy predictions always return "None".
  */
 function deriveSeverity(confidence, isHealthy) {
-  if (isHealthy) return 'None';
-  if (confidence >= 0.85) return 'High';
-  if (confidence >= 0.60) return 'Moderate';
-  if (confidence >= 0.35) return 'Low';
-  return 'Uncertain';
+    if (isHealthy) return 'None';
+    if (confidence >= 0.85) return 'High';
+    if (confidence >= 0.60) return 'Moderate';
+    if (confidence >= 0.35) return 'Low';
+    return 'Uncertain';
 }
 
 function normalizeClassIndexMap(indexMap) {
-  if (!indexMap || typeof indexMap !== 'object') return [];
+    if (!indexMap || typeof indexMap !== 'object') return [];
 
-  return Object.entries(indexMap)
-    .map(([key, value]) => ({
-      index: Number.parseInt(key, 10),
-      label: typeof value === 'string' ? value : '',
-    }))
-    .filter((entry) => Number.isInteger(entry.index) && entry.index >= 0 && entry.label)
-    .sort((a, b) => a.index - b.index)
-    .map((entry) => entry.label);
+    const entries = Object.entries(indexMap)
+        .map(([key, value]) => ({
+            index: Number.parseInt(key, 10),
+            label: typeof value === 'string' ? value : '',
+        }))
+        .filter((entry) => Number.isInteger(entry.index) && entry.index >= 0 && entry.label)
+        .sort((a, b) => a.index - b.index);
+
+    // Indices must run 0..n-1 with no gaps or duplicates; otherwise labels would
+    // silently shift onto the wrong classes.
+    if (!entries.every((entry, position) => entry.index === position)) return [];
+
+    return entries.map((entry) => entry.label);
 }
 
 /**
@@ -52,30 +57,34 @@ function normalizeClassIndexMap(indexMap) {
  * Falls back to static labels if the fetch fails.
  */
 export async function initializePredictionLabels() {
-  try {
-    const response = await fetch('/model/class_indices.json');
-    if (!response.ok) {
-      throw new Error(`Failed to load class indices: HTTP ${response.status}`);
-    }
+    try {
+        const response = await fetch('/model/class_indices.json');
+        if (!response.ok) {
+            throw new Error(`Failed to load class indices: HTTP ${response.status}`);
+        }
 
-    const indexMap = await response.json();
-    const labels = normalizeClassIndexMap(indexMap);
+        const indexMap = await response.json();
+        const labels = normalizeClassIndexMap(indexMap);
 
-    if (labels.length > 0) {
-      runtimeLabels = labels;
+        if (labels.length > 0) {
+            runtimeLabels = labels;
+        } else {
+            console.error('[predictionMapper] class_indices.json has no usable labels; using fallback labels');
+        }
+    } catch (err) {
+        console.error('[predictionMapper] Using fallback labels:', err);
+        runtimeLabels = [...DISEASE_LABELS];
     }
-  } catch (err) {
-    console.error('[predictionMapper] Using fallback labels:', err);
-    runtimeLabels = [...DISEASE_LABELS];
-  }
 }
 
 /**
  * Map a model prediction to a structured result.
  *
- * @param {number}   index               – Predicted class index (0–37)
- * @param {number[]} probabilitiesArray   – Full softmax probability array
- *                                          (length should equal DISEASE_LABELS.length)
+ * @param {number}   index               – Predicted class index (an integer, 0–37)
+ * @param {number[]} probabilitiesArray   – Full softmax probability array. Must have
+ *                                          one entry per class label, otherwise the
+ *                                          model and labels are out of sync and an
+ *                                          Error is thrown.
  * @returns {{
  *   disease:    string,
  *   confidence: number,
@@ -89,54 +98,63 @@ export async function initializePredictionLabels() {
  * }}
  */
 export function mapPrediction(index, probabilitiesArray) {
-  /* 1. Validate index --------------------------------------------------- */
-  if (index < 0 || index >= runtimeLabels.length) {
-    throw new RangeError(
-      `Prediction index ${index} is out of range (0–${runtimeLabels.length - 1}).`
-    );
-  }
+    /* 1. Validate index --------------------------------------------------- */
+    if (!Number.isInteger(index) || index < 0 || index >= runtimeLabels.length) {
+        throw new RangeError(
+            `Prediction index ${index} is out of range (0–${runtimeLabels.length - 1}).`
+        );
+    }
 
-  /* 2. Look up label & confidence -------------------------------------- */
-  const label = runtimeLabels[index];
-  const confidence = probabilitiesArray?.[index] ?? 0;
-  const isHealthy = label.toLowerCase().includes('healthy');
+    // A length mismatch means the model and the labels disagree, so any label we
+    // showed could be the wrong disease. Fail loudly instead.
+    if (probabilitiesArray && probabilitiesArray.length !== runtimeLabels.length) {
+        throw new Error(
+            `Model returned ${probabilitiesArray.length} probabilities but there are ` +
+            `${runtimeLabels.length} class labels (model and labels are out of sync).`
+        );
+    }
 
-  /* 3. Look up treatment database -------------------------------------- */
-  const entry = TREATMENT_DB[label] || {};
+    /* 2. Look up label & confidence -------------------------------------- */
+    const label = runtimeLabels[index];
+    const confidence = probabilitiesArray?.[index] ?? 0;
+    const isHealthy = label.toLowerCase().includes('healthy');
 
-  const disease     = entry.displayName || label;
-  const crop        = entry.crop        || label.split('___')[0].replace(/_/g, ' ');
-  const symptoms    = entry.symptoms    || [];
-  const treatment   = entry.treatment   || ['No treatment data available.'];
-  const prevention  = entry.prevention  || ['No prevention data available.'];
+    /* 3. Look up treatment database -------------------------------------- */
+    const entry = TREATMENT_DB[label] || {};
 
-  /* 4. Severity --------------------------------------------------------- */
-  const severity = deriveSeverity(confidence, isHealthy);
+    const disease     = entry.displayName || label;
+    const crop        = entry.crop        || label.split('___')[0].replace(/_/g, ' ');
+    const symptoms    = entry.symptoms    || [];
+    const treatment   = entry.treatment   || ['No treatment data available.'];
+    const prevention  = entry.prevention  || ['No prevention data available.'];
 
-  /* 5. Top-K predictions (useful for differential diagnosis) ------------ */
-  const topK = probabilitiesArray
-    ? [...probabilitiesArray]
-        .map((prob, i) => ({
-          label: runtimeLabels[i] ?? DISEASE_LABELS[i] ?? `Class ${i}`,
-          probability: prob,
-        }))
-        .sort((a, b) => b.probability - a.probability)
-        .slice(0, 5)
-    : [{ label, probability: confidence }];
+    /* 4. Severity --------------------------------------------------------- */
+    const severity = deriveSeverity(confidence, isHealthy);
 
-  /* 6. Return structured result ----------------------------------------- */
-  return {
-    disease,
-    confidence: parseFloat(confidence.toFixed(4)),
-    severity,
-    treatment,
-    prevention,
-    // Bonus context fields
-    displayName: disease,
-    crop,
-    symptoms,
-    topK,
-  };
+    /* 5. Top-K predictions (useful for differential diagnosis) ------------ */
+    const topK = probabilitiesArray
+        ? [...probabilitiesArray]
+            .map((prob, i) => ({
+                label: runtimeLabels[i] ?? DISEASE_LABELS[i] ?? `Class ${i}`,
+                probability: prob,
+            }))
+            .sort((a, b) => b.probability - a.probability)
+            .slice(0, 5)
+        : [{ label, probability: confidence }];
+
+    /* 6. Return structured result ----------------------------------------- */
+    return {
+        disease,
+        confidence: parseFloat(confidence.toFixed(4)),
+        severity,
+        treatment,
+        prevention,
+        // Bonus context fields
+        displayName: disease,
+        crop,
+        symptoms,
+        topK,
+    };
 }
 
 export default mapPrediction;
