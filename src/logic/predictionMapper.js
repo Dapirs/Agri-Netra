@@ -2,7 +2,7 @@
  * Prediction Mapper
  * ─────────────────
  * Maps a CNN model prediction (class index + probability array) to a
- * human-readable result object with disease info, severity, and care advice.
+ * human-readable result object with disease info and care advice.
  *
  * No external dependencies – uses only the local data modules.
  */
@@ -11,28 +11,6 @@ import { DISEASE_LABELS } from '../data/diseaseLabels.js';
 import { TREATMENT_DB } from '../data/treatmentDB.js';
 
 let runtimeLabels = [...DISEASE_LABELS];
-
-/* ───────── Severity thresholds ───────── */
-
-/**
- * Derive a qualitative severity level from the model's confidence score.
- *
- * | Confidence      | Severity   | Rationale                             |
- * |-----------------|------------|---------------------------------------|
- * | ≥ 0.85          | High       | Strong signal → likely advanced case  |
- * | 0.60 – 0.84     | Moderate   | Clear signal → developing infection   |
- * | 0.35 – 0.59     | Low        | Weak signal → early or minor stage    |
- * | < 0.35          | Uncertain  | Model is not confident in diagnosis   |
- *
- * Healthy predictions always return "None".
- */
-function deriveSeverity(confidence, isHealthy) {
-    if (isHealthy) return 'None';
-    if (confidence >= 0.85) return 'High';
-    if (confidence >= 0.60) return 'Moderate';
-    if (confidence >= 0.35) return 'Low';
-    return 'Uncertain';
-}
 
 function normalizeClassIndexMap(indexMap) {
     if (!indexMap || typeof indexMap !== 'object') return [];
@@ -88,7 +66,7 @@ export async function initializePredictionLabels() {
  * @returns {{
  *   disease:    string,
  *   confidence: number,
- *   severity:   string,
+ *   isHealthy:  boolean,
  *   treatment:  string[],
  *   prevention: string[],
  *   displayName: string,
@@ -128,10 +106,7 @@ export function mapPrediction(index, probabilitiesArray) {
     const treatment   = entry.treatment   || ['No treatment data available.'];
     const prevention  = entry.prevention  || ['No prevention data available.'];
 
-    /* 4. Severity --------------------------------------------------------- */
-    const severity = deriveSeverity(confidence, isHealthy);
-
-    /* 5. Top-K predictions (useful for differential diagnosis) ------------ */
+    /* 4. Top-K predictions (useful for differential diagnosis) ------------ */
     const topK = probabilitiesArray
         ? [...probabilitiesArray]
             .map((prob, i) => ({
@@ -142,11 +117,11 @@ export function mapPrediction(index, probabilitiesArray) {
             .slice(0, 5)
         : [{ label, probability: confidence }];
 
-    /* 6. Return structured result ----------------------------------------- */
+    /* 5. Return structured result ----------------------------------------- */
     return {
         disease,
         confidence: parseFloat(confidence.toFixed(4)),
-        severity,
+        isHealthy,
         treatment,
         prevention,
         // Bonus context fields
