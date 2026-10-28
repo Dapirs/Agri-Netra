@@ -122,9 +122,17 @@ describe('mapPrediction', () => {
         expect(r.confidence).toBe(0.93);
     });
 
-    it('treats a "healthy" class as healthy', () => {
-        const i = indexOfLabel('Tomato___healthy');
-        expect(mapper.mapPrediction(i, probs(i, 0.97)).severity).toBe('None');
+    it('flags a "healthy" class as healthy and a disease class as not healthy', () => {
+        const healthy = indexOfLabel('Tomato___healthy');
+        const sick = indexOfLabel('Tomato___Late_blight');
+
+        expect(mapper.mapPrediction(healthy, probs(healthy, 0.97)).isHealthy).toBe(true);
+        expect(mapper.mapPrediction(sick, probs(sick, 0.97)).isHealthy).toBe(false);
+    });
+
+    it('does not report a severity, because model confidence is not disease severity', () => {
+        const i = indexOfLabel('Tomato___Late_blight');
+        expect(mapper.mapPrediction(i, probs(i, 0.93))).not.toHaveProperty('severity');
     });
 
     it('returns the five most likely classes, highest first, with the winner on top', () => {
@@ -184,5 +192,4 @@ describe('mapPrediction', () => {
         expect(mapper.mapPrediction(2, typed).topK[0].label).toBe(LABELS[2]);
     });
 
-    it.todo('derives severity from disease progress, not from model confidence');
 });
