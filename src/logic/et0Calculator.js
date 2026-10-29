@@ -21,6 +21,18 @@ const ALBEDO = 0.23;               // grass reference crop
 /* ───────── internal helpers ───────── */
 
 /**
+ * Throws unless `value` is a finite number between `min` and `max` (inclusive).
+ */
+function requireNumber(name, value, min, max) {
+    if (typeof value !== 'number' || !Number.isFinite(value)) {
+        throw new TypeError(`${name} must be a finite number (got ${value}).`);
+    }
+    if (value < min || value > max) {
+        throw new RangeError(`${name} must be between ${min} and ${max} (got ${value}).`);
+    }
+}
+
+/**
  * Saturation vapour pressure (kPa) at temperature T (°C).
  * FAO-56 Eq. 11
  */
@@ -117,9 +129,10 @@ function clearSkyRadiation(elevation, Ra) {
  *                                     (not a noon peak value)
  * @param {number}  params.elevation – Station elevation above sea level (m)
  * @param {number}  params.doy       – Day of year (1–366)
- * @param {number} [params.lat]      – Latitude in decimal degrees (needed
- *                                     for Ra & net longwave; defaults to 0)
+ * @param {number}  params.lat       – Latitude in decimal degrees (-90 to 90)
  * @returns {number} ET₀ in mm/day (≥ 0)
+ * @throws {TypeError|RangeError} if an input is missing, not a finite number,
+ *         or outside the range that is physically possible
  */
 export function calculateET0({
                                  temp_c,
@@ -128,8 +141,20 @@ export function calculateET0({
                                  solar_rad,
                                  elevation = 0,
                                  doy,
-                                 lat = 0,
+                                 lat,
                              }) {
+    /* 0. Validate inputs -------------------------------------------------- */
+    requireNumber('temp_c', temp_c, -60, 60);
+    requireNumber('humidity', humidity, 0, 100);
+    requireNumber('wind_ms', wind_ms, 0, 100);
+    requireNumber('solar_rad', solar_rad, 0, 1400);
+    requireNumber('elevation', elevation, -500, 9000);
+    requireNumber('doy', doy, 1, 366);
+    requireNumber('lat', lat, -90, 90);
+    if (!Number.isInteger(doy)) {
+        throw new RangeError(`doy must be a whole number (got ${doy}).`);
+    }
+
     /* 1. Convert inputs --------------------------------------------------- */
     const latRad = (Math.PI / 180) * lat;
 
@@ -147,12 +172,23 @@ export function calculateET0({
 
     /* 3. Radiation terms -------------------------------------------------- */
     const Ra = extraterrestrialRadiation(latRad, doy);
+
+    // The ground cannot receive more sunlight than reaches the top of the
+    // atmosphere. The 0.05 allows for solar_rad being rounded to whole W/m².
+    if (Rs > Ra + 0.05) {
+        throw new RangeError(
+            `solar_rad ${solar_rad} W/m² is more than the sun can deliver at latitude ${lat} ` +
+            `on day ${doy} (at most ${Math.round(Ra / 0.0864)} W/m² as a 24 h mean). ` +
+            `Pass a daily mean, not a noon peak.`
+        );
+    }
+
     const Rso = clearSkyRadiation(elevation, Ra);
 
     // Net shortwave radiation (FAO-56 Eq. 38)
     const Rns = (1 - ALBEDO) * Rs;
 
-    // Relative shortwave radiation ratio, clamped to [0.25, 1]
+    // Relative shortwave radiation ratio, capped at 1
     const RsOverRso = Rso > 0 ? Math.min(Rs / Rso, 1) : 0.5;
 
     // Net longwave radiation (FAO-56 Eq. 39)
