@@ -1,0 +1,7 @@
+node_modules
+dist
+coverage
+test-results
+.vercel
+package-lock.json
+public/model

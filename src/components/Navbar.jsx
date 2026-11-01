@@ -1,21 +1,21 @@
 const TABS = [
   {
-    id:    'dashboard',
+    id: 'dashboard',
     label: 'Dashboard',
     emoji: '📊',
-    icon:  <DashIcon />,
+    icon: <DashIcon />,
   },
   {
-    id:    'scanner',
+    id: 'scanner',
     label: 'Scanner',
     emoji: '🔬',
-    icon:  <ScanIcon />,
+    icon: <ScanIcon />,
   },
   {
-    id:    'irrigation',
+    id: 'irrigation',
     label: 'Irrigation',
     emoji: '💧',
-    icon:  <WaterIcon />,
+    icon: <WaterIcon />,
   },
 ];
 
@@ -64,31 +64,49 @@ export default function Navbar({ page, setPage }) {
 /* ─── SVG icons ──────────────────────────────────────────── */
 function DashIcon() {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
-      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="3" y="3" width="7" height="7" rx="1"/>
-      <rect x="14" y="3" width="7" height="7" rx="1"/>
-      <rect x="3" y="14" width="7" height="7" rx="1"/>
-      <rect x="14" y="14" width="7" height="7" rx="1"/>
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <rect x="3" y="3" width="7" height="7" rx="1" />
+      <rect x="14" y="3" width="7" height="7" rx="1" />
+      <rect x="3" y="14" width="7" height="7" rx="1" />
+      <rect x="14" y="14" width="7" height="7" rx="1" />
     </svg>
   );
 }
 
 function ScanIcon() {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
-      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M3 7V5a2 2 0 012-2h2M17 3h2a2 2 0 012 2v2M21 17v2a2 2 0 01-2 2h-2M7 21H5a2 2 0 01-2-2v-2"/>
-      <circle cx="12" cy="12" r="3"/>
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M3 7V5a2 2 0 012-2h2M17 3h2a2 2 0 012 2v2M21 17v2a2 2 0 01-2 2h-2M7 21H5a2 2 0 01-2-2v-2" />
+      <circle cx="12" cy="12" r="3" />
     </svg>
   );
 }
 
 function WaterIcon() {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
-      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M12 2C6.5 9 4 13.5 4 16a8 8 0 0016 0c0-2.5-2.5-7-8-14z"/>
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M12 2C6.5 9 4 13.5 4 16a8 8 0 0016 0c0-2.5-2.5-7-8-14z" />
     </svg>
   );
 }

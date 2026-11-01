@@ -19,7 +19,7 @@ async function preprocessImage(file, targetSize = 224) {
 
   const img = await new Promise((resolve, reject) => {
     const el = new Image();
-    el.onload  = () => resolve(el);
+    el.onload = () => resolve(el);
     el.onerror = (err) => reject(new Error(`Failed to load image: ${err}`));
     el.src = objectUrl;
   });
