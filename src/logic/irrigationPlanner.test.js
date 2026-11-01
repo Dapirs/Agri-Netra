@@ -41,15 +41,19 @@ afterEach(() => {
 });
 
 describe('planIrrigation: pipeline', () => {
-    it('produces a plausible ET0, Kc, ETc and water need for tomato at flowering', async () => {
+    it('produces a plausible ET0, Kc and crop water use for tomato at flowering', async () => {
         const p = await plan();
 
         expect(p.et0).toBeGreaterThan(4);
         expect(p.et0).toBeLessThan(8);
         expect(p.kc).toBe(1.15);
         expect(p.etc).toBeCloseTo(p.et0 * 1.15, 1);
-        expect(p.water_needed_mm).toBeGreaterThanOrEqual(0);
-        expect(p.water_needed_mm).toBeLessThanOrEqual(p.etc);
+    });
+
+    it('does not claim an irrigation depth, which would need the soil type and root depth', async () => {
+        const p = await plan();
+
+        expect(p).not.toHaveProperty('water_needed_mm');
     });
 
     it('converts 10 m wind to 2 m for ET0 but reports the raw reading', async () => {
@@ -98,20 +102,59 @@ describe('planIrrigation: crop and stage', () => {
     it.todo('rejects an unknown growth stage instead of silently using mid-season Kc');
 });
 
-describe('planIrrigation: soil moisture', () => {
-    // Properties that must stay true even if the soil model is redesigned.
-    it('needs less water when the soil is wetter', async () => {
-        const dry = await plan({ soilMoisture: 0 });
+describe('planIrrigation: soil moisture advice', () => {
+    // The form sends Dry = 0.2, Moist = 0.5, Wet = 0.8.
+    it.each([
+        [0.2, 'irrigate'],
+        [0.5, 'check'],
+        [0.8, 'skip'],
+    ])('turns soil moisture %p into the advice "%s"', async (soilMoisture, advice) => {
+        const p = await plan({ soilMoisture });
+
+        expect(p.advice).toBe(advice);
+    });
+
+    it('never tells the farmer to irrigate a wet field (it used to say "Light irrigation recommended")', async () => {
+        const p = await plan({ soilMoisture: 0.8 });
+
+        expect(p.advice).toBe('skip');
+        expect(p.notes).toMatch(/skip irrigation/i);
+        expect(p.notes).not.toMatch(/irrigation recommended/i);
+    });
+
+    it('reports the same crop water use whatever the soil says', async () => {
+        const dry = await plan({ soilMoisture: 0.2 });
+        const moist = await plan({ soilMoisture: 0.5 });
         const wet = await plan({ soilMoisture: 0.8 });
 
-        expect(dry.water_needed_mm).toBeGreaterThan(0);
-        expect(wet.water_needed_mm).toBeLessThan(dry.water_needed_mm);
+        expect(moist.etc).toBe(dry.etc);
+        expect(wet.etc).toBe(dry.etc);
     });
 
-    it('never returns a negative amount, even for out-of-range moisture', async () => {
-        const p = await plan({ soilMoisture: 5 });
-        expect(p.water_needed_mm).toBeGreaterThanOrEqual(0);
+    it.each([
+        [0.34, 'irrigate'],
+        [0.35, 'check'],
+        [0.64, 'check'],
+        [0.65, 'skip'],
+        [-1, 'irrigate'],
+        [5, 'skip'],
+    ])('decides on the boundary value %p as "%s"', async (soilMoisture, advice) => {
+        const p = await plan({ soilMoisture });
+
+        expect(p.advice).toBe(advice);
     });
 
-    it.todo('accounts for rainfall and soil type (real root-zone water balance)');
+    it.each([
+        [0.2, /irrigate today/i],
+        [0.5, /check again tomorrow/i],
+        [0.8, /skip irrigation today/i],
+    ])('explains the advice for soil moisture %p in plain words', async (soilMoisture, wording) => {
+        const p = await plan({ soilMoisture });
+
+        expect(p.notes).toMatch(wording);
+        expect(p.notes).toMatch(/uses about \d+\.\d mm of water a day/);
+    });
+
+    // A future feature, not a bug: needs the soil type, root depth and rainfall.
+    it.todo('estimates how many millimetres to apply (root-zone water balance)');
 });

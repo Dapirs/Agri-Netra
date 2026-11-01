@@ -2,9 +2,10 @@
  * Irrigation Planner
  * ──────────────────
  * Combines weather data, FAO-56 ET₀, and crop coefficients to
- * calculate daily crop water demand adjusted for current soil moisture.
+ * calculate today's crop water use (ETc), plus a simple skip / check /
+ * irrigate decision from the reported soil moisture.
  *
- * Pipeline:  getWeather → calculateET0 → lookup Kc → water_needed_mm
+ * Pipeline:  getWeather → calculateET0 → lookup Kc → ETc → advice
  */
 
 import { getWeather } from './weatherService.js';
@@ -16,6 +17,13 @@ import { CROP_COEFFICIENTS } from '../data/cropCoefficients.js';
  * u2 = u10 · 4.87 / ln(67.8·10 − 5.42) ≈ 0.748 · u10 (FAO-56 Eq. 47).
  */
 const WIND_10M_TO_2M = 0.748;
+
+/**
+ * The form asks for Dry / Moist / Wet and sends 0.2 / 0.5 / 0.8. These cut-offs sit
+ * halfway between those levels: below DRY_BELOW the soil is dry, from WET_FROM it is wet.
+ */
+const DRY_BELOW = 0.35;
+const WET_FROM = 0.65;
 
 /* ───────── Stage → Kc key mapping ───────── */
 
@@ -68,14 +76,14 @@ function currentDOY() {
 }
 
 /**
- * Plan daily irrigation requirement.
+ * Work out today's crop water use and whether to irrigate.
  *
  * @param {object}  params
  * @param {string}  params.crop         – Crop name (e.g. "Tomato", "Corn")
  * @param {string}  params.stage        – Growth stage keyword (e.g. "mid", "flowering")
  * @param {number}  params.soilMoisture – Current soil moisture as fraction (0–1),
- *                                        where 1 = field capacity. Used to offset
- *                                        the irrigation demand.
+ *                                        where 1 = field capacity. Decides the advice
+ *                                        (skip / check / irrigate), not an amount.
  * @param {number}  params.lat          – Latitude (decimal degrees)
  * @param {number}  params.lon          – Longitude (decimal degrees)
  * @param {number} [params.elevation=0] – Station elevation (m) for ET₀ accuracy
@@ -85,7 +93,7 @@ function currentDOY() {
  *   et0:              number,
  *   kc:               number,
  *   etc:              number,
- *   water_needed_mm:  number,
+ *   advice:           'skip' | 'check' | 'irrigate',
  *   weather_cached:   boolean,
  *   weather:          object,
  *   notes:            string
@@ -121,25 +129,22 @@ export async function planIrrigation({
     /* 4. Crop evapotranspiration ETc = ET₀ × Kc -------------------------- */
     const etc = parseFloat((et0 * kc).toFixed(2));
 
-    /* 5. Water needed, offset by available soil moisture ------------------ */
-    //   soilMoisture is expressed as a fraction of field capacity (0–1).
-    //   We assume the effective root-zone depth contribution equals
-    //   soilMoisture × ETc (i.e., the soil can supply that fraction of demand).
+    /* 5. Decide from the soil moisture ------------------------------------ */
+    //   Crop water use (ETc) does not depend on the soil; the soil tells us whether the
+    //   crop needs water now. Turning that into millimetres to apply would need the soil
+    //   type and root depth, which the app does not know, so we do not claim an amount.
     const clampedMoisture = Math.max(0, Math.min(1, soilMoisture));
-    const soilContribution = parseFloat((clampedMoisture * etc).toFixed(2));
-    const waterNeeded = parseFloat(Math.max(0, etc - soilContribution).toFixed(2));
+    const advice =
+        clampedMoisture >= WET_FROM ? 'skip' :
+            clampedMoisture >= DRY_BELOW ? 'check' : 'irrigate';
 
     /* 6. Compose advisory note ------------------------------------------- */
-    let notes = '';
-    if (waterNeeded === 0) {
-        notes = 'Soil moisture is sufficient — no irrigation needed today.';
-    } else if (waterNeeded < 2) {
-        notes = 'Light irrigation recommended.';
-    } else if (waterNeeded < 5) {
-        notes = 'Moderate irrigation recommended.';
-    } else {
-        notes = 'Heavy irrigation recommended — consider split applications.';
-    }
+    const usage = `Your crop uses about ${etc.toFixed(1)} mm of water a day.`;
+    const notes = {
+        skip: `Soil is wet, so skip irrigation today. ${usage} Check again in a day or two.`,
+        check: `Soil moisture is fine for now. Check again tomorrow. ${usage}`,
+        irrigate: `Soil is dry, so irrigate today. ${usage} Apply at least that much, and more if the soil is very dry.`,
+    }[advice];
 
     /* 7. Return result ---------------------------------------------------- */
     return {
@@ -148,7 +153,7 @@ export async function planIrrigation({
         et0,
         kc,
         etc,
-        water_needed_mm: waterNeeded,
+        advice,
         weather_cached: weather.weather_cached,
         weather: {
             temp_c:    weather.temp_c,
