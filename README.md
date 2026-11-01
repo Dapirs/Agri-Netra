@@ -42,7 +42,7 @@ Download them from `github.com/Rishit-dagli/Greenathon-Plant-AI` and place them 
 ## How it works
 Disease detection pipeline: an image is preprocessed into a model-ready tensor, then passed to the TensorFlow.js model in the browser. Scores are mapped to class labels and treatment/prevention info, and low-confidence scans are rejected with a retry message.
 
-Irrigation calculation: the app fetches current weather, computes ET0 with the FAO-56 Penman-Monteith method, then applies crop coefficient (Kc) by growth stage. Soil moisture level is used to reduce net irrigation depth before showing the final recommendation.
+Irrigation calculation: the app fetches current weather, computes ET0 with the FAO-56 Penman-Monteith method, then applies crop coefficient (Kc) by growth stage.  Soil moisture (Dry / Moist / Wet) decides the advice: skip, check tomorrow, or irrigate. The app reports today’s crop water use but does not claim an amount to apply, because that would need the soil type and root depth.
 
 Offline capability: once model files are downloaded by the browser, disease inference runs locally with no network calls. Irrigation still needs internet because weather data is live.
 
