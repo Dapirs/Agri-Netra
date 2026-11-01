@@ -1,14 +1,14 @@
-@import "tailwindcss";
+@import 'tailwindcss';
 
 /* ── Design tokens ─────────────────────────────────────── */
 :root {
-  --color-primary: #2D6A4F;
+  --color-primary: #2d6a4f;
   --color-primary-dark: #24563f;
-  --color-accent: #D4A843;
-  --color-bg: #F5F0E8;
-  --color-surface: #EDE4D5;
-  --color-text: #1A1A2E;
-  --color-muted: #5C5C72;
+  --color-accent: #d4a843;
+  --color-bg: #f5f0e8;
+  --color-surface: #ede4d5;
+  --color-text: #1a1a2e;
+  --color-muted: #5c5c72;
   --font-sans: Calibri, 'Segoe UI', system-ui, sans-serif;
 }
 
@@ -91,7 +91,10 @@ h6 {
   border-radius: 1rem;
   background: rgba(255, 255, 255, 0.03);
   cursor: pointer;
-  transition: border-color 0.2s ease, background 0.2s ease, transform 0.15s ease;
+  transition:
+    border-color 0.2s ease,
+    background 0.2s ease,
+    transform 0.15s ease;
   overflow: hidden;
 }
 
@@ -195,9 +198,9 @@ h6 {
 }
 
 .camera-modal__btn--capture {
-  background: linear-gradient(135deg, #2D6A4F, #24563f);
+  background: linear-gradient(135deg, #2d6a4f, #24563f);
   color: #ffffff;
-  border: 1px solid #2D6A4F;
+  border: 1px solid #2d6a4f;
 }
 
 .camera-modal__btn--capture:not(:disabled):hover {
@@ -206,8 +209,8 @@ h6 {
 
 .camera-modal__btn--cancel {
   background: #ffffff;
-  color: #2D6A4F;
-  border: 1px solid #2D6A4F;
+  color: #2d6a4f;
+  border: 1px solid #2d6a4f;
 }
 
 .camera-modal__btn--cancel:not(:disabled):hover {
@@ -225,7 +228,10 @@ h6 {
   font-weight: 600;
   cursor: pointer;
   border: none;
-  transition: background 0.2s ease, transform 0.1s ease, opacity 0.2s ease;
+  transition:
+    background 0.2s ease,
+    transform 0.1s ease,
+    opacity 0.2s ease;
 }
 
 .btn:disabled {
@@ -262,7 +268,9 @@ h6 {
 
 /* Spinner */
 @keyframes spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .spinner {
@@ -326,8 +334,14 @@ h6 {
 }
 
 @keyframes fadeSlideUp {
-  from { opacity: 0; transform: translateY(16px); }
-  to   { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* Header */
@@ -688,26 +702,29 @@ h6 {
   appearance: none;
   -webkit-appearance: none;
   -moz-appearance: none;
-  background: #F5F0E8;
-  border: 1.5px solid #2D6A4F;
+  background: #f5f0e8;
+  border: 1.5px solid #2d6a4f;
   border-radius: 0.5rem;
-  color: #1A1A2E;
+  color: #1a1a2e;
   font-family: var(--font-sans);
   font-size: 0.9rem;
   padding: 0.75rem 2.5rem 0.75rem 2.5rem;
   cursor: pointer;
-  transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+  transition:
+    border-color 0.2s ease,
+    background 0.2s ease,
+    box-shadow 0.2s ease;
 }
 
 .irr-field__select option {
-  background: #F5F0E8;
-  color: #1A1A2E;
+  background: #f5f0e8;
+  color: #1a1a2e;
 }
 
 .irr-field__select:focus {
   outline: none;
-  border-color: #D4A843;
-  background: #F5F0E8;
+  border-color: #d4a843;
+  background: #f5f0e8;
   box-shadow: none;
 }
 
@@ -743,7 +760,7 @@ h6 {
   right: 0.875rem;
   display: flex;
   align-items: center;
-  color: #2D6A4F;
+  color: #2d6a4f;
   pointer-events: none;
   transition: color 0.2s ease;
 }
@@ -1228,7 +1245,7 @@ h6 {
   right: 0;
   z-index: 200;
   background: #ffffff;
-  border-top: 1px solid #2D6A4F;
+  border-top: 1px solid #2d6a4f;
   box-shadow: 0 -4px 14px rgba(26, 26, 46, 0.08);
   /* Safe area for iPhone home bar */
   padding-bottom: env(safe-area-inset-bottom, 0px);
@@ -1254,7 +1271,7 @@ h6 {
   background: none;
   border: none;
   cursor: pointer;
-  color: #6B7280;
+  color: #6b7280;
   transition: color 0.2s ease;
   -webkit-tap-highlight-color: transparent;
   outline: none;
@@ -1269,7 +1286,7 @@ h6 {
 
 /* Active state */
 .navbar__tab--active {
-  color: #2D6A4F;
+  color: #2d6a4f;
 }
 
 /* Active pill indicator */
@@ -1281,7 +1298,7 @@ h6 {
   width: 2.5rem;
   height: 3px;
   border-radius: 0 0 4px 4px;
-  background: #D4A843;
+  background: #d4a843;
   transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
@@ -1329,23 +1346,23 @@ h6 {
 /* ── Earthy warm theme overrides ───────────────────────── */
 .theme-earthy,
 .app-shell {
-  background: #F5F0E8;
-  color: #1A1A2E;
+  background: #f5f0e8;
+  color: #1a1a2e;
 }
 
 .app-header {
-  background: #F5F0E8;
+  background: #f5f0e8;
   box-shadow: 0 2px 10px rgba(45, 106, 79, 0.12);
   border-bottom: 1px solid rgba(45, 106, 79, 0.2);
 }
 
 .app-header__logo {
   background: rgba(45, 106, 79, 0.12);
-  color: #2D6A4F;
+  color: #2d6a4f;
 }
 
 .app-header__title {
-  color: #2D6A4F;
+  color: #2d6a4f;
 }
 
 .app-header__sub {
@@ -1359,13 +1376,13 @@ h6 {
 .dash-score-card,
 .dash-chart-card,
 .dash-list-card {
-  background: #FFFDF8;
+  background: #fffdf8;
   border-color: rgba(45, 106, 79, 0.22);
   box-shadow: 0 8px 20px rgba(45, 106, 79, 0.08);
 }
 
 .btn--primary {
-  background: linear-gradient(135deg, #2D6A4F, #24563f);
+  background: linear-gradient(135deg, #2d6a4f, #24563f);
 }
 
 .btn--primary:not(:disabled):hover {
@@ -1375,13 +1392,13 @@ h6 {
 .btn--secondary {
   background: rgba(212, 168, 67, 0.12);
   border-color: rgba(212, 168, 67, 0.35);
-  color: #1A1A2E;
+  color: #1a1a2e;
 }
 
 .status-banner--loading {
   background: rgba(45, 106, 79, 0.1);
   border-color: rgba(45, 106, 79, 0.28);
-  color: #2D6A4F;
+  color: #2d6a4f;
 }
 
 .navbar {
@@ -1390,16 +1407,9 @@ h6 {
 }
 
 .navbar__tab--active {
-  color: #2D6A4F;
+  color: #2d6a4f;
 }
 
 .navbar__pill {
-  background: linear-gradient(90deg, #2D6A4F, #D4A843);
+  background: linear-gradient(90deg, #2d6a4f, #d4a843);
 }
-
-
-
-
-
-
-

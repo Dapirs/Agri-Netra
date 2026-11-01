@@ -28,19 +28,19 @@ const WET_FROM = 0.65;
 /* ───────── Stage → Kc key mapping ───────── */
 
 const STAGE_KC_MAP = {
-    initial:    'initial',
-    mid:        'mid',
-    end:        'late',
-    late:       'late',
-    // Convenience aliases
-    ini:        'initial',
-    early:      'initial',
-    seedling:   'initial',
-    vegetative: 'mid',
-    flowering:  'mid',
-    peak:       'mid',
-    mature:     'late',
-    harvest:    'late',
+  initial: 'initial',
+  mid: 'mid',
+  end: 'late',
+  late: 'late',
+  // Convenience aliases
+  ini: 'initial',
+  early: 'initial',
+  seedling: 'initial',
+  vegetative: 'mid',
+  flowering: 'mid',
+  peak: 'mid',
+  mature: 'late',
+  harvest: 'late',
 };
 
 /**
@@ -51,28 +51,28 @@ const STAGE_KC_MAP = {
  * @returns {{ kc: number, kcKey: string }}
  */
 function resolveKc(crop, stage) {
-    const entry = CROP_COEFFICIENTS[crop];
-    if (!entry) {
-        throw new Error(
-            `Unknown crop "${crop}". Available: ${Object.keys(CROP_COEFFICIENTS).join(', ')}`
-        );
-    }
+  const entry = CROP_COEFFICIENTS[crop];
+  if (!entry) {
+    throw new Error(
+      `Unknown crop "${crop}". Available: ${Object.keys(CROP_COEFFICIENTS).join(', ')}`
+    );
+  }
 
-    const kcKey = STAGE_KC_MAP[stage.toLowerCase()] || 'mid';
-    const kc = entry[kcKey] ?? entry.mid;
+  const kcKey = STAGE_KC_MAP[stage.toLowerCase()] || 'mid';
+  const kc = entry[kcKey] ?? entry.mid;
 
-    return { kc, kcKey };
+  return { kc, kcKey };
 }
 
 /**
  * Get the current day-of-year (1–366).
  */
 function currentDOY() {
-    const now = new Date();
-    const start = new Date(now.getFullYear(), 0, 0);
-    const diff = now - start;
-    const oneDay = 86_400_000; // ms
-    return Math.floor(diff / oneDay);
+  const now = new Date();
+  const start = new Date(now.getFullYear(), 0, 0);
+  const diff = now - start;
+  const oneDay = 86_400_000; // ms
+  return Math.floor(diff / oneDay);
 }
 
 /**
@@ -99,70 +99,62 @@ function currentDOY() {
  *   notes:            string
  * }>}
  */
-export async function planIrrigation({
-                                         crop,
-                                         stage,
-                                         soilMoisture = 0,
-                                         lat,
-                                         lon,
-                                         elevation = 0,
-                                     }) {
-    /* 1. Fetch current weather ------------------------------------------- */
-    const weather = await getWeather(lat, lon);
+export async function planIrrigation({ crop, stage, soilMoisture = 0, lat, lon, elevation = 0 }) {
+  /* 1. Fetch current weather ------------------------------------------- */
+  const weather = await getWeather(lat, lon);
 
-    /* 2. Calculate reference ET₀ ----------------------------------------- */
-    const doy = currentDOY();
+  /* 2. Calculate reference ET₀ ----------------------------------------- */
+  const doy = currentDOY();
 
-    const et0 = calculateET0({
-        temp_c:    weather.temp_c,
-        humidity:  weather.humidity,
-        wind_ms:   weather.wind_ms * WIND_10M_TO_2M,
-        solar_rad: weather.solar_rad,
-        elevation,
-        doy,
-        lat,
-    });
+  const et0 = calculateET0({
+    temp_c: weather.temp_c,
+    humidity: weather.humidity,
+    wind_ms: weather.wind_ms * WIND_10M_TO_2M,
+    solar_rad: weather.solar_rad,
+    elevation,
+    doy,
+    lat,
+  });
 
-    /* 3. Look up crop coefficient Kc ------------------------------------- */
-    const { kc } = resolveKc(crop, stage);
+  /* 3. Look up crop coefficient Kc ------------------------------------- */
+  const { kc } = resolveKc(crop, stage);
 
-    /* 4. Crop evapotranspiration ETc = ET₀ × Kc -------------------------- */
-    const etc = parseFloat((et0 * kc).toFixed(2));
+  /* 4. Crop evapotranspiration ETc = ET₀ × Kc -------------------------- */
+  const etc = parseFloat((et0 * kc).toFixed(2));
 
-    /* 5. Decide from the soil moisture ------------------------------------ */
-    //   Crop water use (ETc) does not depend on the soil; the soil tells us whether the
-    //   crop needs water now. Turning that into millimetres to apply would need the soil
-    //   type and root depth, which the app does not know, so we do not claim an amount.
-    const clampedMoisture = Math.max(0, Math.min(1, soilMoisture));
-    const advice =
-        clampedMoisture >= WET_FROM ? 'skip' :
-            clampedMoisture >= DRY_BELOW ? 'check' : 'irrigate';
+  /* 5. Decide from the soil moisture ------------------------------------ */
+  //   Crop water use (ETc) does not depend on the soil; the soil tells us whether the
+  //   crop needs water now. Turning that into millimetres to apply would need the soil
+  //   type and root depth, which the app does not know, so we do not claim an amount.
+  const clampedMoisture = Math.max(0, Math.min(1, soilMoisture));
+  const advice =
+    clampedMoisture >= WET_FROM ? 'skip' : clampedMoisture >= DRY_BELOW ? 'check' : 'irrigate';
 
-    /* 6. Compose advisory note ------------------------------------------- */
-    const usage = `Your crop uses about ${etc.toFixed(1)} mm of water a day.`;
-    const notes = {
-        skip: `Soil is wet, so skip irrigation today. ${usage} Check again in a day or two.`,
-        check: `Soil moisture is fine for now. Check again tomorrow. ${usage}`,
-        irrigate: `Soil is dry, so irrigate today. ${usage} Apply at least that much, and more if the soil is very dry.`,
-    }[advice];
+  /* 6. Compose advisory note ------------------------------------------- */
+  const usage = `Your crop uses about ${etc.toFixed(1)} mm of water a day.`;
+  const notes = {
+    skip: `Soil is wet, so skip irrigation today. ${usage} Check again in a day or two.`,
+    check: `Soil moisture is fine for now. Check again tomorrow. ${usage}`,
+    irrigate: `Soil is dry, so irrigate today. ${usage} Apply at least that much, and more if the soil is very dry.`,
+  }[advice];
 
-    /* 7. Return result ---------------------------------------------------- */
-    return {
-        crop,
-        stage,
-        et0,
-        kc,
-        etc,
-        advice,
-        weather_cached: weather.weather_cached,
-        weather: {
-            temp_c:    weather.temp_c,
-            humidity:  weather.humidity,
-            wind_ms:   weather.wind_ms,
-            solar_rad: weather.solar_rad,
-        },
-        notes,
-    };
+  /* 7. Return result ---------------------------------------------------- */
+  return {
+    crop,
+    stage,
+    et0,
+    kc,
+    etc,
+    advice,
+    weather_cached: weather.weather_cached,
+    weather: {
+      temp_c: weather.temp_c,
+      humidity: weather.humidity,
+      wind_ms: weather.wind_ms,
+      solar_rad: weather.solar_rad,
+    },
+    notes,
+  };
 }
 
 export default planIrrigation;

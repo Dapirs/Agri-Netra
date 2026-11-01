@@ -12,7 +12,7 @@
 
 export const DISEASE_TREATMENTS = {
   /* ───────── Apple ───────── */
-  'Apple___Apple_scab': {
+  Apple___Apple_scab: {
     displayName: 'Apple Scab',
     crop: 'Apple',
     symptoms: [
@@ -32,7 +32,7 @@ export const DISEASE_TREATMENTS = {
     ],
   },
 
-  'Apple___Black_rot': {
+  Apple___Black_rot: {
     displayName: 'Black Rot',
     crop: 'Apple',
     symptoms: [
@@ -52,7 +52,7 @@ export const DISEASE_TREATMENTS = {
     ],
   },
 
-  'Apple___Cedar_apple_rust': {
+  Apple___Cedar_apple_rust: {
     displayName: 'Cedar Apple Rust',
     crop: 'Apple',
     symptoms: [
@@ -71,7 +71,7 @@ export const DISEASE_TREATMENTS = {
     ],
   },
 
-  'Apple___healthy': {
+  Apple___healthy: {
     displayName: 'Healthy Apple',
     crop: 'Apple',
     symptoms: [],
@@ -84,7 +84,7 @@ export const DISEASE_TREATMENTS = {
   },
 
   /* ───────── Blueberry ───────── */
-  'Blueberry___healthy': {
+  Blueberry___healthy: {
     displayName: 'Healthy Blueberry',
     crop: 'Blueberry',
     symptoms: [],
@@ -199,7 +199,7 @@ export const DISEASE_TREATMENTS = {
   },
 
   /* ───────── Grape ───────── */
-  'Grape___Black_rot': {
+  Grape___Black_rot: {
     displayName: 'Grape Black Rot',
     crop: 'Grape',
     symptoms: [
@@ -257,7 +257,7 @@ export const DISEASE_TREATMENTS = {
     ],
   },
 
-  'Grape___healthy': {
+  Grape___healthy: {
     displayName: 'Healthy Grape',
     crop: 'Grape',
     symptoms: [],
@@ -291,7 +291,7 @@ export const DISEASE_TREATMENTS = {
   },
 
   /* ───────── Peach ───────── */
-  'Peach___Bacterial_spot': {
+  Peach___Bacterial_spot: {
     displayName: 'Peach Bacterial Spot',
     crop: 'Peach',
     symptoms: [
@@ -310,7 +310,7 @@ export const DISEASE_TREATMENTS = {
     ],
   },
 
-  'Peach___healthy': {
+  Peach___healthy: {
     displayName: 'Healthy Peach',
     crop: 'Peach',
     symptoms: [],
@@ -355,7 +355,7 @@ export const DISEASE_TREATMENTS = {
   },
 
   /* ───────── Potato ───────── */
-  'Potato___Early_blight': {
+  Potato___Early_blight: {
     displayName: 'Potato Early Blight',
     crop: 'Potato',
     symptoms: [
@@ -374,7 +374,7 @@ export const DISEASE_TREATMENTS = {
     ],
   },
 
-  'Potato___Late_blight': {
+  Potato___Late_blight: {
     displayName: 'Potato Late Blight',
     crop: 'Potato',
     symptoms: [
@@ -393,7 +393,7 @@ export const DISEASE_TREATMENTS = {
     ],
   },
 
-  'Potato___healthy': {
+  Potato___healthy: {
     displayName: 'Healthy Potato',
     crop: 'Potato',
     symptoms: [],
@@ -406,7 +406,7 @@ export const DISEASE_TREATMENTS = {
   },
 
   /* ───────── Raspberry ───────── */
-  'Raspberry___healthy': {
+  Raspberry___healthy: {
     displayName: 'Healthy Raspberry',
     crop: 'Raspberry',
     symptoms: [],
@@ -419,7 +419,7 @@ export const DISEASE_TREATMENTS = {
   },
 
   /* ───────── Soybean ───────── */
-  'Soybean___healthy': {
+  Soybean___healthy: {
     displayName: 'Healthy Soybean',
     crop: 'Soybean',
     symptoms: [],
@@ -432,7 +432,7 @@ export const DISEASE_TREATMENTS = {
   },
 
   /* ───────── Squash ───────── */
-  'Squash___Powdery_mildew': {
+  Squash___Powdery_mildew: {
     displayName: 'Squash Powdery Mildew',
     crop: 'Squash',
     symptoms: [
@@ -452,7 +452,7 @@ export const DISEASE_TREATMENTS = {
   },
 
   /* ───────── Strawberry ───────── */
-  'Strawberry___Leaf_scorch': {
+  Strawberry___Leaf_scorch: {
     displayName: 'Strawberry Leaf Scorch',
     crop: 'Strawberry',
     symptoms: [
@@ -471,7 +471,7 @@ export const DISEASE_TREATMENTS = {
     ],
   },
 
-  'Strawberry___healthy': {
+  Strawberry___healthy: {
     displayName: 'Healthy Strawberry',
     crop: 'Strawberry',
     symptoms: [],
@@ -484,7 +484,7 @@ export const DISEASE_TREATMENTS = {
   },
 
   /* ───────── Tomato ───────── */
-  'Tomato___Bacterial_spot': {
+  Tomato___Bacterial_spot: {
     displayName: 'Tomato Bacterial Spot',
     crop: 'Tomato',
     symptoms: [
@@ -503,7 +503,7 @@ export const DISEASE_TREATMENTS = {
     ],
   },
 
-  'Tomato___Early_blight': {
+  Tomato___Early_blight: {
     displayName: 'Tomato Early Blight',
     crop: 'Tomato',
     symptoms: [
@@ -522,7 +522,7 @@ export const DISEASE_TREATMENTS = {
     ],
   },
 
-  'Tomato___Late_blight': {
+  Tomato___Late_blight: {
     displayName: 'Tomato Late Blight',
     crop: 'Tomato',
     symptoms: [
@@ -542,7 +542,7 @@ export const DISEASE_TREATMENTS = {
     ],
   },
 
-  'Tomato___Leaf_Mold': {
+  Tomato___Leaf_Mold: {
     displayName: 'Tomato Leaf Mold',
     crop: 'Tomato',
     symptoms: [
@@ -561,7 +561,7 @@ export const DISEASE_TREATMENTS = {
     ],
   },
 
-  'Tomato___Septoria_leaf_spot': {
+  Tomato___Septoria_leaf_spot: {
     displayName: 'Septoria Leaf Spot',
     crop: 'Tomato',
     symptoms: [
@@ -600,7 +600,7 @@ export const DISEASE_TREATMENTS = {
     ],
   },
 
-  'Tomato___Target_Spot': {
+  Tomato___Target_Spot: {
     displayName: 'Tomato Target Spot',
     crop: 'Tomato',
     symptoms: [
@@ -619,7 +619,7 @@ export const DISEASE_TREATMENTS = {
     ],
   },
 
-  'Tomato___Tomato_Yellow_Leaf_Curl_Virus': {
+  Tomato___Tomato_Yellow_Leaf_Curl_Virus: {
     displayName: 'Tomato Yellow Leaf Curl Virus (TYLCV)',
     crop: 'Tomato',
     symptoms: [
@@ -638,7 +638,7 @@ export const DISEASE_TREATMENTS = {
     ],
   },
 
-  'Tomato___Tomato_mosaic_virus': {
+  Tomato___Tomato_mosaic_virus: {
     displayName: 'Tomato Mosaic Virus (ToMV)',
     crop: 'Tomato',
     symptoms: [
@@ -657,7 +657,7 @@ export const DISEASE_TREATMENTS = {
     ],
   },
 
-  'Tomato___healthy': {
+  Tomato___healthy: {
     displayName: 'Healthy Tomato',
     crop: 'Tomato',
     symptoms: [],

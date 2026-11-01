@@ -31,6 +31,9 @@ jobs:
       - run:
           name: Lint
           command: npm run lint
+      - run:
+          name: Check formatting
+          command: npm run format:check
 
   test:
     executor: node
