@@ -1,47 +1,44 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import http from 'node:http';
-import { createServer } from './index.js';
+import { createRequestListener } from './index.js';
 
 const SECRET = 'test-secret-key-123';
 
-let server;
+/** A minimal stand-in for Node's response, so these tests need no network port. */
+function mockRes() {
+  const res = {
+    statusCode: 200,
+    headers: {},
+    body: '',
+    headersSent: false,
+    setHeader(name, value) {
+      res.headers[name.toLowerCase()] = value;
+    },
+    end(chunk = '') {
+      res.body += chunk;
+      res.headersSent = true;
+    },
+  };
+  return res;
+}
 
-/** Start the server on a random free port. */
-const start = (handler) =>
-  new Promise((resolve) => {
-    server = handler ? createServer(handler) : createServer();
-    server.listen(0, '127.0.0.1', () => resolve(server.address().port));
-  });
-
-/** GET a path from the running server (node:http, so a stubbed global fetch can't interfere). */
-const get = (port, path, method = 'GET') =>
-  new Promise((resolve, reject) => {
-    const req = http.request({ host: '127.0.0.1', port, path, method }, (res) => {
-      let data = '';
-      res.on('data', (chunk) => {
-        data += chunk;
-      });
-      res.on('end', () =>
-        resolve({
-          status: res.statusCode,
-          headers: res.headers,
-          text: data,
-          json: data ? JSON.parse(data) : null,
-        })
-      );
-    });
-    req.on('error', reject);
-    req.end();
-  });
+/** Sends one request through the server's request logic and returns what it answered. */
+async function request(url, { method = 'GET', handler } = {}) {
+  const res = mockRes();
+  await createRequestListener(handler)({ method, url, headers: {} }, res);
+  return {
+    status: res.statusCode,
+    headers: res.headers,
+    text: res.body,
+    json: res.body ? JSON.parse(res.body) : null,
+  };
+}
 
 beforeEach(() => {
   vi.spyOn(console, 'log').mockImplementation(() => {});
   vi.spyOn(console, 'error').mockImplementation(() => {});
 });
 
-afterEach(async () => {
-  await new Promise((resolve) => (server ? server.close(resolve) : resolve()));
-  server = undefined;
+afterEach(() => {
   vi.unstubAllEnvs();
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
@@ -49,16 +46,14 @@ afterEach(async () => {
 
 describe('server routing', () => {
   it('answers /healthz with 200 ok', async () => {
-    const port = await start();
-    const res = await get(port, '/healthz');
+    const res = await request('/healthz');
 
     expect(res.status).toBe(200);
     expect(res.json).toEqual({ status: 'ok' });
   });
 
   it('answers unknown paths with a JSON 404', async () => {
-    const port = await start();
-    const res = await get(port, '/nope');
+    const res = await request('/nope');
 
     expect(res.status).toBe(404);
     expect(res.headers['content-type']).toContain('application/json');
@@ -68,24 +63,35 @@ describe('server routing', () => {
     const handler = vi.fn(async (req, res) => {
       res.status(201).json({ got: req.query, method: req.method });
     });
-    const port = await start(handler);
 
-    const res = await get(port, '/api/weather?lat=28.6&lon=77.2');
+    const res = await request('/api/weather?lat=28.6&lon=77.2', { handler });
 
     expect(res.status).toBe(201);
     expect(res.json).toEqual({ got: { lat: '28.6', lon: '77.2' }, method: 'GET' });
   });
 
   it('turns a crashing handler into a generic 500 without leaking details', async () => {
-    const port = await start(async () => {
+    const handler = async () => {
       throw new Error('database password is hunter2');
-    });
+    };
 
-    const res = await get(port, '/api/weather?lat=1&lon=2');
+    const res = await request('/api/weather?lat=1&lon=2', { handler });
 
     expect(res.status).toBe(500);
     expect(res.json).toEqual({ error: 'Internal server error' });
     expect(res.text).not.toContain('hunter2');
+  });
+
+  it('does not send a second answer when the handler crashes after it already replied', async () => {
+    const handler = async (_req, res) => {
+      res.status(200).json({ ok: true });
+      throw new Error('late failure');
+    };
+
+    const res = await request('/api/weather?lat=1&lon=2', { handler });
+
+    expect(res.status).toBe(200);
+    expect(res.json).toEqual({ ok: true });
   });
 });
 
@@ -102,9 +108,8 @@ describe('server with the real weather handler', () => {
       .fn()
       .mockResolvedValue({ ok: true, status: 200, json: async () => upstream });
     vi.stubGlobal('fetch', fetchMock);
-    const port = await start();
 
-    const res = await get(port, '/api/weather?lat=28.6&lon=77.2');
+    const res = await request('/api/weather?lat=28.6&lon=77.2');
 
     expect(res.status).toBe(200);
     expect(res.json).toEqual(upstream);
@@ -113,15 +118,13 @@ describe('server with the real weather handler', () => {
   });
 
   it('rejects bad coordinates with 400', async () => {
-    const port = await start();
-    const res = await get(port, '/api/weather?lat=abc&lon=77.2');
+    const res = await request('/api/weather?lat=abc&lon=77.2');
 
     expect(res.status).toBe(400);
   });
 
   it('rejects non-GET requests with 405', async () => {
-    const port = await start();
-    const res = await get(port, '/api/weather?lat=1&lon=2', 'POST');
+    const res = await request('/api/weather?lat=1&lon=2', { method: 'POST' });
 
     expect(res.status).toBe(405);
   });

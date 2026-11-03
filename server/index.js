@@ -35,11 +35,13 @@ function withHelpers(res) {
 }
 
 /**
+ * The request logic on its own, so it can be tested without opening a network port.
+ *
  * @param {(req, res) => Promise<void>} [handler] – defaults to api/weather.js
- * @returns {http.Server}
+ * @returns {(req, res) => Promise<void>} a listener for http.createServer
  */
-export function createServer(handler = weatherHandler) {
-  return http.createServer(async (req, res) => {
+export function createRequestListener(handler = weatherHandler) {
+  return async (req, res) => {
     try {
       const { pathname, searchParams } = new URL(req.url, 'http://localhost');
 
@@ -63,7 +65,15 @@ export function createServer(handler = weatherHandler) {
         res.end();
       }
     }
-  });
+  };
+}
+
+/**
+ * @param {(req, res) => Promise<void>} [handler] – defaults to api/weather.js
+ * @returns {http.Server}
+ */
+export function createServer(handler) {
+  return http.createServer(createRequestListener(handler));
 }
 
 // Start listening only when run directly (`node server/index.js`), not when imported by tests.
