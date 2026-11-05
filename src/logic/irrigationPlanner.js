@@ -135,7 +135,7 @@ export async function planIrrigation({ crop, stage, soilMoisture = 0, lat, lon, 
   const notes = {
     skip: `Soil is wet, so skip irrigation today. ${usage} Check again in a day or two.`,
     check: `Soil moisture is fine for now. Check again tomorrow. ${usage}`,
-    irrigate: `Soil is dry, so irrigate today. ${usage} Apply at least that much, and more if the soil is very dry.`,
+    irrigate: `Soil is dry, so irrigate today. ${usage}`,
   }[advice];
 
   /* 7. Return result ---------------------------------------------------- */

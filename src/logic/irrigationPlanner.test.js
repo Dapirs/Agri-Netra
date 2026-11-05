@@ -159,6 +159,17 @@ describe('planIrrigation: soil moisture advice', () => {
     expect(p.notes).toMatch(/uses about \d+\.\d mm of water a day/);
   });
 
+  // The app cannot know how much water to apply (that needs soil type and root depth),
+  // so no note may prescribe an amount, not even as a minimum.
+  it.each([0.2, 0.5, 0.8])(
+    'never tells the farmer how much water to apply (soil moisture %p)',
+    async (soilMoisture) => {
+      const p = await plan({ soilMoisture });
+
+      expect(p.notes).not.toMatch(/apply|at least/i);
+    }
+  );
+
   // A future feature, not a bug: needs the soil type, root depth and rainfall.
   it.todo('estimates how many millimetres to apply (root-zone water balance)');
 });
