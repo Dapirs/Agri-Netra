@@ -48,6 +48,8 @@ function checkRateLimit(address, now = Date.now()) {
   return 0;
 }
 
+const UPSTREAM_TIMEOUT_MS = 8_000;
+
 export default async function handler(req, res) {
   const apiKey =
     process.env.OPENWEATHER_API_KEY ||
@@ -104,7 +106,8 @@ export default async function handler(req, res) {
     `&appid=${encodeURIComponent(apiKey)}`;
 
   try {
-    const response = await fetch(url);
+    // Give up before nginx does (proxy_read_timeout 15s), so the browser gets our JSON 504.
+    const response = await fetch(url, { signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS) });
     const json = await response.json();
 
     if (!response.ok) {
@@ -114,11 +117,7 @@ export default async function handler(req, res) {
         message: upstreamMessage,
       });
 
-      res.status(response.status).json({
-        error: 'OpenWeatherMap API error',
-        message: upstreamMessage,
-        details: json,
-      });
+      res.status(response.status).json({ error: 'OpenWeatherMap API error' });
       return;
     }
 
@@ -126,11 +125,12 @@ export default async function handler(req, res) {
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     const cause = error instanceof Error && error.cause ? String(error.cause) : null;
-    console.error('[api/weather] Weather proxy request failed:', message);
-    res.status(502).json({
-      error: 'Weather proxy request failed',
-      message,
-      cause,
-    });
+    console.error('[api/weather] Weather proxy request failed:', { message, cause });
+
+    if (error?.name === 'TimeoutError') {
+      res.status(504).json({ error: 'Weather service timed out' });
+      return;
+    }
+    res.status(502).json({ error: 'Weather proxy request failed' });
   }
 }
