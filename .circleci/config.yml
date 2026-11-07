@@ -1,5 +1,11 @@
 version: 2.1
 
+# Set to true only by the nightly schedule (CircleCI → Project Settings → Triggers).
+parameters:
+  nightly-scan:
+    type: boolean
+    default: false
+
 # Every job runs on the same Node 22 image (matches Vite 8's requirements).
 executors:
   node:
@@ -151,6 +157,22 @@ jobs:
             docker run --rm --user "$(id -u):$(id -g)" -v "$PWD:/repo" -w /repo \
               zricethezav/gitleaks:v8.30.1@sha256:c00b6bd0aeb3071cbcb79009cb16a60dd9e0a7c60e2be9ab65d25e6bc8abbb7f git --redact --verbose .
 
+  scan-published-images:
+    # Nightly: new vulnerabilities are published every day, so re-scan what is already on Docker Hub.
+    machine:
+      image: ubuntu-2404:current
+    steps:
+      - run:
+          name: Scan the published images (Trivy)
+          command: |
+            status=0
+            for image in dapirs2006/agri-netra:latest dapirs2006/agri-netra-api:latest; do
+              docker run --rm \
+                aquasec/trivy:0.76.1@sha256:790fd66d1697395d8693d1acaa1ea702406a20f109b6fc7bac8db623eca6c06c image \
+                --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1 --no-progress "$image" || status=1
+            done
+            exit $status
+
   docker-publish:
     # Pushes both images to Docker Hub. Runs only on main, after every other check passed.
     machine:
@@ -194,6 +216,8 @@ jobs:
 # docker-publish runs only on main, once all five have passed.
 workflows:
   ci:
+    when:
+      not: << pipeline.parameters.nightly-scan >>
     jobs:
       - lint
       - test
@@ -206,3 +230,9 @@ workflows:
           filters:
             branches:
               only: main
+
+  # Runs only from the nightly schedule; fix a failure by re-running the latest main pipeline.
+  nightly-scan:
+    when: << pipeline.parameters.nightly-scan >>
+    jobs:
+      - scan-published-images
