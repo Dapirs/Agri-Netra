@@ -14,7 +14,7 @@ import { mapPrediction } from '../logic/predictionMapper';
  */
 export default function Scanner({ onResult }) {
   const { model, loading: modelLoading, error: modelError } = useModel();
-  const { preview, handleFileUpload } = useCamera();
+  const { preview, file, error: uploadError, handleFileUpload } = useCamera();
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const streamRef = useRef(null);
@@ -24,7 +24,8 @@ export default function Scanner({ onResult }) {
   const [scanning, setScanning] = useState(false);
   const [scanError, setScanError] = useState(null);
   const [isDragOver, setIsDragOver] = useState(false);
-  const [cameraOpen, setCameraOpen] = useState(false);
+  const [cameraStream, setCameraStream] = useState(null);
+  const cameraOpen = cameraStream !== null;
   const [cameraError, setCameraError] = useState(null);
 
   const stopCameraStream = useCallback(() => {
@@ -48,9 +49,20 @@ export default function Scanner({ onResult }) {
     };
   }, [stopCameraStream]);
 
+  // Show the live stream in the video element as soon as the camera window has rendered.
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!cameraStream || !video) return;
+
+    video.srcObject = cameraStream;
+    video.play().catch(() => {
+      setCameraError('Unable to start camera preview.');
+    });
+  }, [cameraStream]);
+
   const closeCameraModal = useCallback(() => {
     stopCameraStream();
-    setCameraOpen(false);
+    setCameraStream(null);
   }, [stopCameraStream]);
 
   const openCamera = useCallback(async () => {
@@ -75,17 +87,7 @@ export default function Scanner({ onResult }) {
       // Never keep an earlier stream running (e.g. "Use Camera" tapped twice).
       stopCameraStream();
       streamRef.current = stream;
-      setCameraOpen(true);
-
-      // Wait for modal/video to render before binding stream.
-      setTimeout(() => {
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-          videoRef.current.play().catch(() => {
-            setCameraError('Unable to start camera preview.');
-          });
-        }
-      }, 300);
+      setCameraStream(stream);
     } catch (error) {
       setCameraError(error instanceof Error ? error.message : 'Unable to access camera.');
       stopCameraStream();
@@ -160,21 +162,13 @@ export default function Scanner({ onResult }) {
 
   /* ── Core inference handler ── */
   const handleScan = useCallback(async () => {
-    if (!model || !fileRef.current) return;
-
-    // Grab the File from the hidden input is tricky after reset, so we derive
-    // it from the preview object URL by fetching the blob back.
-    if (!preview) return;
+    if (!model || !file) return;
 
     setScanError(null);
     setScanning(true);
 
     let tensor = null;
     try {
-      // Re-fetch the blob from the object URL we already hold
-      const blob = await fetch(preview).then((r) => r.blob());
-      const file = new File([blob], 'capture.jpg', { type: blob.type });
-
       // Preprocess → [1, 224, 224, 3]
       tensor = await preprocessImage(file);
 
@@ -190,7 +184,6 @@ export default function Scanner({ onResult }) {
       if (typeof predictions.dispose === 'function') {
         predictions.dispose();
       }
-      console.log('Scores:', scores);
 
       tensor.dispose();
       tensor = null;
@@ -226,11 +219,12 @@ export default function Scanner({ onResult }) {
       tensor?.dispose();
       setScanning(false);
     }
-  }, [model, preview, onResult, fileRef]);
+  }, [model, file, onResult]);
 
   /* ── Derived UI states ── */
   const isReady = !modelLoading && !modelError && !!model;
   const canScan = isReady && !!preview && !scanning;
+  const shownError = uploadError ?? scanError;
 
   /* ── Render ── */
   return (
@@ -316,7 +310,6 @@ export default function Scanner({ onResult }) {
             ref={videoRef}
             className="camera-modal__video"
             style={{
-              transform: 'scaleX(-1)',
               width: '100%',
               height: '100%',
               objectFit: 'cover',
@@ -432,9 +425,9 @@ export default function Scanner({ onResult }) {
       </div>
 
       {/* Inference error */}
-      {scanError && (
+      {shownError && (
         <p className="scan-error" role="alert">
-          ⚠ {scanError}
+          ⚠ {shownError}
         </p>
       )}
 
