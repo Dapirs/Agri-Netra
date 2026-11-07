@@ -65,6 +65,16 @@ export default function Scanner({ onResult }) {
     setCameraStream(null);
   }, [stopCameraStream]);
 
+  // Browsers keep the camera running in a background tab, so close it when the tab is hidden.
+  // (If another app is in front but this window is still visible, the browser does not tell us.)
+  useEffect(() => {
+    const closeWhenHidden = () => {
+      if (document.visibilityState === 'hidden') closeCameraModal();
+    };
+    document.addEventListener('visibilitychange', closeWhenHidden);
+    return () => document.removeEventListener('visibilitychange', closeWhenHidden);
+  }, [closeCameraModal]);
+
   const openCamera = useCallback(async () => {
     if (!navigator.mediaDevices?.getUserMedia) {
       setCameraError('Camera API is not supported in this browser.');
@@ -78,8 +88,8 @@ export default function Scanner({ onResult }) {
         video: { facingMode: 'environment' },
       });
 
-      // The user may have left the page while the permission prompt was open.
-      if (!mountedRef.current) {
+      // The user may have left the page or the tab while the permission prompt was open.
+      if (!mountedRef.current || document.visibilityState === 'hidden') {
         stream.getTracks().forEach((track) => track.stop());
         return;
       }

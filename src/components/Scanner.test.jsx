@@ -140,6 +140,81 @@ describe('Scanner camera', () => {
   });
 });
 
+/** Pretends the user switched to another browser tab (or back), like the browser does. */
+function setPageHidden(hidden) {
+  Object.defineProperty(document, 'visibilityState', {
+    value: hidden ? 'hidden' : 'visible',
+    configurable: true,
+  });
+  document.dispatchEvent(new Event('visibilitychange'));
+}
+
+describe('Scanner camera in a background tab', () => {
+  // Remove the pretend value so document.visibilityState is the real one again.
+  afterEach(() => {
+    delete document.visibilityState;
+  });
+
+  it('stops the camera and closes the camera window when the user switches tabs', async () => {
+    const stream = fakeStream();
+    getUserMedia.mockResolvedValue(stream);
+    render(<Scanner onResult={() => {}} />);
+
+    clickUseCamera();
+    await cameraWindow();
+    expect(noneStopped(stream)).toBe(true);
+
+    act(() => setPageHidden(true));
+
+    expect(allStopped(stream)).toBe(true);
+    expect(screen.queryByRole('button', { name: 'Cancel' })).toBeNull();
+  });
+
+  it('stops a camera stream that arrives while the tab is in the background', async () => {
+    const stream = fakeStream();
+    const permission = deferred();
+    getUserMedia.mockReturnValue(permission.promise);
+    render(<Scanner onResult={() => {}} />);
+
+    clickUseCamera();
+    act(() => setPageHidden(true)); // the user switched tabs while the permission prompt was open
+
+    await act(async () => {
+      permission.resolve(stream);
+      await permission.promise;
+    });
+
+    expect(allStopped(stream)).toBe(true);
+    expect(screen.queryByRole('button', { name: 'Cancel' })).toBeNull();
+  });
+
+  it('lets the user open the camera again after coming back to the tab', async () => {
+    const first = fakeStream();
+    const second = fakeStream();
+    getUserMedia.mockResolvedValueOnce(first).mockResolvedValueOnce(second);
+    render(<Scanner onResult={() => {}} />);
+
+    clickUseCamera();
+    await cameraWindow();
+    act(() => setPageHidden(true));
+    act(() => setPageHidden(false));
+
+    clickUseCamera();
+    await cameraWindow();
+
+    expect(noneStopped(second)).toBe(true);
+  });
+
+  it('stops listening for tab switches once the user leaves the page', () => {
+    const remove = vi.spyOn(document, 'removeEventListener');
+    const { unmount } = render(<Scanner onResult={() => {}} />);
+
+    unmount();
+
+    expect(remove).toHaveBeenCalledWith('visibilitychange', expect.any(Function));
+  });
+});
+
 describe('Scanner camera preview', () => {
   it('does not mirror the live preview, because the captured photo is not mirrored', async () => {
     getUserMedia.mockResolvedValue(fakeStream());
