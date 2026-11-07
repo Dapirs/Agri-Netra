@@ -1,7 +1,8 @@
 # syntax=docker/dockerfile:1
 
 # ---- Stage 1: build the static site ------------------------------------------
-FROM node:22-alpine AS build
+# Runs on the builder's own CPU type: the output is plain HTML/JS/CSS, the same for every platform.
+FROM --platform=$BUILDPLATFORM node:22-alpine AS build
 WORKDIR /app
 
 # Install dependencies first so this layer is cached until the lockfile changes.
