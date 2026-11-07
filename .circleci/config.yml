@@ -121,7 +121,44 @@ jobs:
             docker compose ps
             docker compose logs --no-color
 
+  docker-publish:
+    # Pushes both images to Docker Hub. Runs only on main, after every other check passed.
+    machine:
+      image: ubuntu-2404:current
+    environment:
+      WEB_IMAGE: dapirs2006/agri-netra
+      API_IMAGE: dapirs2006/agri-netra-api
+    steps:
+      - checkout
+      - run:
+          name: Log in to Docker Hub
+          # DOCKERHUB_USERNAME and DOCKERHUB_TOKEN come from the docker-hub context.
+          command: echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
+      - run:
+          name: Set up a builder that can make Intel and Apple Silicon images
+          command: docker buildx create --name multiarch --driver docker-container --use
+      - run:
+          name: Build and push both images (amd64 + arm64)
+          command: |
+            tag=${CIRCLE_SHA1:0:7}
+            docker buildx build --platform linux/amd64,linux/arm64 -f Dockerfile \
+              -t "$WEB_IMAGE:$tag" -t "$WEB_IMAGE:latest" --push .
+            docker buildx build --platform linux/amd64,linux/arm64 -f server/Dockerfile \
+              -t "$API_IMAGE:$tag" -t "$API_IMAGE:latest" --push .
+      - run:
+          name: Check every pushed tag has both platforms
+          command: |
+            tag=${CIRCLE_SHA1:0:7}
+            for ref in "$WEB_IMAGE:$tag" "$WEB_IMAGE:latest" "$API_IMAGE:$tag" "$API_IMAGE:latest"; do
+              manifest=$(docker buildx imagetools inspect "$ref")
+              for platform in linux/amd64 linux/arm64; do
+                echo "$manifest" | grep -q "Platform: *$platform" || { echo "$ref is missing $platform"; exit 1; }
+              done
+              echo "$ref: amd64 + arm64"
+            done
+
 # lint, test, build and docker-build run in parallel on every push and pull request.
+# docker-publish runs only on main, once all four have passed.
 workflows:
   ci:
     jobs:
@@ -129,3 +166,9 @@ workflows:
       - test
       - build
       - docker-build
+      - docker-publish:
+          context: docker-hub
+          requires: [lint, test, build, docker-build]
+          filters:
+            branches:
+              only: main
