@@ -97,6 +97,22 @@ jobs:
             # nginx forwards /api/ to the weather server, which rejects bad coordinates
             status=$(curl -s -o /dev/null -w '%{http_code}' 'http://localhost:8080/api/weather?lat=abc&lon=1')
             test "$status" = "400" || { echo "expected 400 through the proxy, got $status"; exit 1; }
+            # Security headers on every kind of response, including errors
+            asset=$(grep -o '/assets/[^"]*\.js' /tmp/index.html | head -n 1)
+            for path in / /dashboard/anything "$asset" /assets/does-not-exist.js /model/model.json \
+                '/api/weather?lat=abc&lon=1' /healthz; do
+              headers=$(curl -s -D - -o /dev/null "http://localhost:8080$path")
+              for header in 'X-Content-Type-Options: nosniff' 'X-Frame-Options: DENY' 'Referrer-Policy: same-origin'; do
+                echo "$headers" | grep -qi "^$header" || { echo "missing '$header' on $path"; exit 1; }
+              done
+            done
+            # Adding those headers must not drop the per-folder cache rules
+            curl -s -D - -o /dev/null "http://localhost:8080$asset" | grep -qi '^Cache-Control: .*immutable' \
+              || { echo "assets lost their Cache-Control"; exit 1; }
+            curl -s -D - -o /dev/null http://localhost:8080/model/model.json | grep -qi '^Cache-Control: .*max-age=604800' \
+              || { echo "model files lost their Cache-Control"; exit 1; }
+            curl -s -D - -o /dev/null http://localhost:8080/ | grep -qi '^Cache-Control: no-cache' \
+              || { echo "index.html lost its Cache-Control"; exit 1; }
             echo "smoke tests passed"
       - run:
           name: Container status and logs
