@@ -5,10 +5,12 @@ import { render, screen, fireEvent, cleanup, act, waitFor } from '@testing-libra
 import Scanner from './Scanner.jsx';
 
 // The model and image preprocessing load TensorFlow.js, which these tests don't need.
+// Tests that scan an image put a fake model in `mocks.model`.
+const mocks = vi.hoisted(() => ({ model: null, preprocessImage: vi.fn() }));
 vi.mock('../hooks/useModel', () => ({
-  default: () => ({ model: null, loading: false, error: null }),
+  default: () => ({ model: mocks.model, loading: false, error: null }),
 }));
-vi.mock('../utils/preprocessImage', () => ({ default: vi.fn() }));
+vi.mock('../utils/preprocessImage', () => ({ default: mocks.preprocessImage }));
 
 /** A fake camera stream whose tracks record whether they were stopped. */
 function fakeStream() {
@@ -29,7 +31,14 @@ function deferred() {
 
 let getUserMedia;
 
+let urlCount;
+
 beforeEach(() => {
+  mocks.model = null;
+  mocks.preprocessImage.mockReset();
+  urlCount = 0;
+  URL.createObjectURL = vi.fn(() => `blob:preview-${++urlCount}`);
+  URL.revokeObjectURL = vi.fn();
   getUserMedia = vi.fn();
   Object.defineProperty(navigator, 'mediaDevices', {
     value: { getUserMedia },
@@ -40,6 +49,8 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup();
+  delete URL.createObjectURL;
+  delete URL.revokeObjectURL;
   delete navigator.mediaDevices;
   vi.restoreAllMocks();
 });
@@ -126,5 +137,215 @@ describe('Scanner camera', () => {
 
     unmount();
     expect(allStopped(stream)).toBe(true);
+  });
+});
+
+describe('Scanner camera preview', () => {
+  it('does not mirror the live preview, because the captured photo is not mirrored', async () => {
+    getUserMedia.mockResolvedValue(fakeStream());
+    const { container } = render(<Scanner onResult={() => {}} />);
+
+    clickUseCamera();
+    await cameraWindow();
+
+    expect(container.querySelector('video').style.transform).not.toContain('scaleX');
+  });
+
+  it('shows the live stream in the preview as soon as the camera window opens', async () => {
+    const stream = fakeStream();
+    getUserMedia.mockResolvedValue(stream);
+    const { container } = render(<Scanner onResult={() => {}} />);
+
+    clickUseCamera();
+    await cameraWindow();
+
+    expect(container.querySelector('video').srcObject).toBe(stream);
+    expect(HTMLMediaElement.prototype.play).toHaveBeenCalled();
+  });
+
+  it('switches the preview to the newer stream when the camera is opened twice', async () => {
+    const first = fakeStream();
+    const second = fakeStream();
+    getUserMedia.mockResolvedValueOnce(first).mockResolvedValueOnce(second);
+    const { container } = render(<Scanner onResult={() => {}} />);
+
+    clickUseCamera();
+    await cameraWindow();
+    clickUseCamera();
+    await waitFor(() => expect(container.querySelector('video').srcObject).toBe(second));
+  });
+});
+
+const MB = 1024 * 1024;
+
+/** A File that claims to be `bytes` long, without allocating that much memory. */
+function imageOf(bytes, name = 'leaf.jpg') {
+  const file = new File(['x'], name, { type: 'image/jpeg' });
+  Object.defineProperty(file, 'size', { value: bytes });
+  return file;
+}
+const fileInput = (container) => container.querySelector('input[type="file"]');
+const choose = (container, file) =>
+  fireEvent.change(fileInput(container), { target: { files: [file] } });
+const shownPreview = () => screen.queryByAltText('Selected crop');
+
+describe('Scanner image size limit', () => {
+  it('rejects an image over 10 MB and keeps the previous photo', () => {
+    const { container } = render(<Scanner onResult={() => {}} />);
+    choose(container, imageOf(2 * MB, 'small.jpg'));
+    expect(shownPreview()).not.toBeNull();
+
+    choose(container, imageOf(10 * MB + 1, 'huge.jpg'));
+
+    expect(screen.getByRole('alert').textContent).toMatch(/maximum is 10 MB/);
+    expect(shownPreview().getAttribute('src')).toBe('blob:preview-1');
+  });
+
+  it('accepts an image of exactly 10 MB', () => {
+    const { container } = render(<Scanner onResult={() => {}} />);
+
+    choose(container, imageOf(10 * MB));
+
+    expect(shownPreview()).not.toBeNull();
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+
+  it('rejects a too-big image that is dragged onto the upload box', () => {
+    render(<Scanner onResult={() => {}} />);
+
+    fireEvent.drop(screen.getByRole('button', { name: 'Upload or drag an image' }), {
+      dataTransfer: { files: [imageOf(11 * MB)] },
+    });
+
+    expect(shownPreview()).toBeNull();
+    expect(screen.getByRole('alert').textContent).toMatch(/maximum is 10 MB/);
+  });
+
+  it('clears the size message once a good image is chosen', () => {
+    const { container } = render(<Scanner onResult={() => {}} />);
+    choose(container, imageOf(11 * MB));
+    expect(screen.getByRole('alert')).not.toBeNull();
+
+    choose(container, imageOf(1 * MB));
+
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(shownPreview()).not.toBeNull();
+  });
+});
+
+describe('Scanner preview memory', () => {
+  it('releases the previous preview when a new image replaces it', () => {
+    const { container } = render(<Scanner onResult={() => {}} />);
+
+    choose(container, imageOf(MB, 'a.jpg'));
+    choose(container, imageOf(MB, 'b.jpg'));
+
+    expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:preview-1');
+    expect(URL.revokeObjectURL).not.toHaveBeenCalledWith('blob:preview-2');
+  });
+
+  it('releases the preview when the user leaves the page', () => {
+    const { container, unmount } = render(<Scanner onResult={() => {}} />);
+    choose(container, imageOf(MB));
+
+    unmount();
+
+    expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:preview-1');
+  });
+
+  it('keeps the shown preview when a too-big image is rejected', () => {
+    const { container } = render(<Scanner onResult={() => {}} />);
+    choose(container, imageOf(MB));
+
+    choose(container, imageOf(11 * MB));
+
+    expect(URL.revokeObjectURL).not.toHaveBeenCalled();
+  });
+});
+
+/** A fake model that answers every image with the given probabilities. */
+function fakeModel(scores) {
+  const predictions = {
+    data: vi.fn().mockResolvedValue(Float32Array.from(scores)),
+    dispose: vi.fn(),
+  };
+  return { predict: vi.fn().mockReturnValue(predictions) };
+}
+const TOMATO_HEALTHY = 37; // position of Tomato___healthy in the model's class list
+const peaked = (index, confidence, n = 38) =>
+  Array.from({ length: n }, (_, i) => (i === index ? confidence : (1 - confidence) / (n - 1)));
+const clickScan = () => fireEvent.click(screen.getByRole('button', { name: 'Scan crop' }));
+
+describe('Scanner scanning', () => {
+  beforeEach(() => {
+    mocks.preprocessImage.mockResolvedValue({ dispose: vi.fn() });
+  });
+
+  it('scans the chosen file itself, without downloading it back from its preview URL', async () => {
+    mocks.model = fakeModel(peaked(TOMATO_HEALTHY, 0.97));
+    const fetchSpy = vi.fn();
+    vi.stubGlobal('fetch', fetchSpy);
+    const onResult = vi.fn();
+    const { container } = render(<Scanner onResult={onResult} />);
+    const file = imageOf(MB, 'my-leaf.jpg');
+
+    choose(container, file);
+    clickScan();
+    await waitFor(() => expect(onResult).toHaveBeenCalled());
+
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(mocks.preprocessImage.mock.calls[0][0]).toBe(file);
+    vi.unstubAllGlobals();
+  });
+
+  it('reports a confident result with its confidence as a percentage', async () => {
+    mocks.model = fakeModel(peaked(TOMATO_HEALTHY, 0.97));
+    const onResult = vi.fn();
+    const { container } = render(<Scanner onResult={onResult} />);
+
+    choose(container, imageOf(MB));
+    clickScan();
+    await waitFor(() => expect(onResult).toHaveBeenCalled());
+
+    const result = onResult.mock.calls[0][0];
+    expect(result.isHealthy).toBe(true);
+    expect(result.confidence).toBeCloseTo(97, 1);
+  });
+
+  it('asks for a clearer photo when the model is not at least 85% sure', async () => {
+    mocks.model = fakeModel(peaked(TOMATO_HEALTHY, 0.5));
+    const onResult = vi.fn();
+    const { container } = render(<Scanner onResult={onResult} />);
+
+    choose(container, imageOf(MB));
+    clickScan();
+    await waitFor(() => expect(onResult).toHaveBeenCalledWith(null));
+
+    expect(screen.getByRole('alert').textContent).toMatch(/clear photo of a plant leaf/);
+  });
+
+  it('shows the error when the image cannot be processed', async () => {
+    mocks.model = fakeModel(peaked(TOMATO_HEALTHY, 0.97));
+    mocks.preprocessImage.mockRejectedValue(new Error('This image is corrupt'));
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    const { container } = render(<Scanner onResult={() => {}} />);
+
+    choose(container, imageOf(MB));
+    clickScan();
+
+    expect((await screen.findByRole('alert')).textContent).toMatch(/This image is corrupt/);
+  });
+
+  it('does not print the model scores to the console', async () => {
+    mocks.model = fakeModel(peaked(TOMATO_HEALTHY, 0.97));
+    const log = vi.spyOn(console, 'log').mockImplementation(() => {});
+    const onResult = vi.fn();
+    const { container } = render(<Scanner onResult={onResult} />);
+
+    choose(container, imageOf(MB));
+    clickScan();
+    await waitFor(() => expect(onResult).toHaveBeenCalled());
+
+    expect(log).not.toHaveBeenCalled();
   });
 });
