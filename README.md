@@ -8,7 +8,7 @@ Disease detection runs on your device. Once the app and its model have loaded, s
 
 ## Tech
 
-Built with React 19, Vite, TailwindCSS, TensorFlow.js, OpenWeatherMap API, and Recharts.
+Built with React 19, Vite, TensorFlow.js, OpenWeatherMap API, and Recharts.
 
 Weather needs the small api/weather.js serverless proxy; disease detection needs no backend.
 
