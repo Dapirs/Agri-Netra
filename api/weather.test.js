@@ -135,6 +135,71 @@ describe('api/weather handler', () => {
   });
 });
 
+describe('api/weather handler: failures', () => {
+  /** A fetch that never answers on its own, like a hung server; it only stops when aborted. */
+  const hangingFetch = () =>
+    vi.fn(
+      (url, { signal }) =>
+        new Promise((resolve, reject) => {
+          signal.addEventListener('abort', () => reject(signal.reason));
+        })
+    );
+
+  /** Replaces the 8-second timer with one the test fires by hand (fake timers cannot fire it). */
+  function controlTimeout() {
+    const controller = new AbortController();
+    const timeout = vi.spyOn(AbortSignal, 'timeout').mockReturnValue(controller.signal);
+    const fire = () =>
+      controller.abort(
+        new DOMException('The operation was aborted due to timeout', 'TimeoutError')
+      );
+    return { timeout, fire };
+  }
+
+  it('gives up on OpenWeatherMap after 8 seconds and answers 504', async () => {
+    const { timeout, fire } = controlTimeout();
+    vi.stubGlobal('fetch', hangingFetch());
+
+    const pending = call({});
+    fire();
+    const res = await pending;
+
+    expect(timeout).toHaveBeenCalledWith(8000);
+    expect(res.statusCode).toBe(504);
+    expect(res.body).toEqual({ error: 'Weather service timed out' });
+  });
+
+  it('does not tell the browser why the request failed, but logs it on the server', async () => {
+    const failure = new TypeError('fetch failed', {
+      cause: new Error('getaddrinfo ENOTFOUND api.openweathermap.org'),
+    });
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(failure));
+
+    const res = await call({});
+
+    expect(res.statusCode).toBe(502);
+    expect(res.body).toEqual({ error: 'Weather proxy request failed' });
+    expect(JSON.stringify(console.error.mock.calls)).toContain('ENOTFOUND');
+  });
+
+  it("does not pass OpenWeatherMap's error message to the browser, but logs it on the server", async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status: 401,
+        json: async () => ({ cod: 401, message: 'Invalid API key' }),
+      })
+    );
+
+    const res = await call({});
+
+    expect(res.statusCode).toBe(401);
+    expect(res.body).toEqual({ error: 'OpenWeatherMap API error' });
+    expect(JSON.stringify(console.error.mock.calls)).toContain('Invalid API key');
+  });
+});
+
 describe('api/weather handler: coordinates', () => {
   it.each([
     ['', ''],
