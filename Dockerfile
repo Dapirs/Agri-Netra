@@ -14,6 +14,10 @@ RUN npm run build
 
 # ---- Stage 2: serve it with nginx (runs as a non-root user on port 8080) ------
 FROM nginxinc/nginx-unprivileged:stable-alpine
+# The base image can lag behind Alpine's security fixes, so upgrade its packages (Trivy checks this in CI).
+USER root
+RUN apk upgrade --no-cache
+USER 101
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 COPY nginx-security-headers.conf /etc/nginx/security-headers.conf
 COPY --from=build /app/dist /usr/share/nginx/html

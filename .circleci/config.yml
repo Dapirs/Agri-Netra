@@ -34,6 +34,10 @@ jobs:
       - run:
           name: Check formatting
           command: npm run format:check
+      - run:
+          name: Audit production dependencies
+          # Only packages that ship in the app; fails on high or critical advisories.
+          command: npm audit --omit=dev --audit-level=high
 
   test:
     executor: node
@@ -115,11 +119,37 @@ jobs:
               || { echo "index.html lost its Cache-Control"; exit 1; }
             echo "smoke tests passed"
       - run:
+          name: Scan both images for known vulnerabilities (Trivy)
+          # Fails on HIGH/CRITICAL problems that have a fix. Pinned by digest after the March 2026 Trivy
+          # supply-chain attack; it gets the Docker socket, so it runs here (no secrets), not in docker-publish.
+          command: |
+            # Scan every image before failing, so one run shows all findings.
+            status=0
+            for image in $(docker compose config --images); do
+              docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
+                aquasec/trivy:0.76.1@sha256:790fd66d1697395d8693d1acaa1ea702406a20f109b6fc7bac8db623eca6c06c image \
+                --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1 --no-progress "$image" || status=1
+            done
+            exit $status
+      - run:
           name: Container status and logs
           when: always
           command: |
             docker compose ps
             docker compose logs --no-color
+
+  secrets-scan:
+    # Scans every commit on every branch for leaked secrets (API keys, tokens, passwords).
+    machine:
+      image: ubuntu-2404:current
+    steps:
+      - checkout
+      - run:
+          name: Scan git history for secrets (gitleaks)
+          # Runs as the CI user so git trusts the mounted repo. Pinned by digest, like Trivy.
+          command: |
+            docker run --rm --user "$(id -u):$(id -g)" -v "$PWD:/repo" -w /repo \
+              zricethezav/gitleaks:v8.30.1@sha256:c00b6bd0aeb3071cbcb79009cb16a60dd9e0a7c60e2be9ab65d25e6bc8abbb7f git --redact --verbose .
 
   docker-publish:
     # Pushes both images to Docker Hub. Runs only on main, after every other check passed.
@@ -134,6 +164,9 @@ jobs:
           name: Log in to Docker Hub
           # DOCKERHUB_USERNAME and DOCKERHUB_TOKEN come from the docker-hub context.
           command: echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
+      - run:
+          name: Install QEMU so the arm64 images can run their build commands (apk upgrade)
+          command: sudo apt-get update && sudo apt-get install -y qemu-user-static
       - run:
           name: Set up a builder that can make Intel and Apple Silicon images
           command: docker buildx create --name multiarch --driver docker-container --use
@@ -157,8 +190,8 @@ jobs:
               echo "$ref: amd64 + arm64"
             done
 
-# lint, test, build and docker-build run in parallel on every push and pull request.
-# docker-publish runs only on main, once all four have passed.
+# lint, test, build, docker-build and secrets-scan run in parallel on every push and pull request.
+# docker-publish runs only on main, once all five have passed.
 workflows:
   ci:
     jobs:
@@ -166,9 +199,10 @@ workflows:
       - test
       - build
       - docker-build
+      - secrets-scan
       - docker-publish:
           context: docker-hub
-          requires: [lint, test, build, docker-build]
+          requires: [lint, test, build, docker-build, secrets-scan]
           filters:
             branches:
               only: main
