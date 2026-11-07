@@ -1,6 +1,9 @@
 # syntax=docker/dockerfile:1
 # Build from the repository root:  docker build -f server/Dockerfile .
 FROM node:22-alpine
+# The base image can lag behind Alpine's security fixes, so upgrade its packages (Trivy checks this in CI).
+# npm is never used at runtime (the server has no dependencies), so remove it and the packages it bundles.
+RUN apk upgrade --no-cache && rm -rf /usr/local/lib/node_modules/npm /usr/local/bin/npm /usr/local/bin/npx
 
 ENV NODE_ENV=production
 WORKDIR /app

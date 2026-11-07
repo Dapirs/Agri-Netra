@@ -123,11 +123,14 @@ jobs:
           # Fails on HIGH/CRITICAL problems that have a fix. Pinned by digest after the March 2026 Trivy
           # supply-chain attack; it gets the Docker socket, so it runs here (no secrets), not in docker-publish.
           command: |
+            # Scan every image before failing, so one run shows all findings.
+            status=0
             for image in $(docker compose config --images); do
               docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
                 aquasec/trivy:0.76.1@sha256:790fd66d1697395d8693d1acaa1ea702406a20f109b6fc7bac8db623eca6c06c image \
-                --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1 --no-progress "$image"
+                --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1 --no-progress "$image" || status=1
             done
+            exit $status
       - run:
           name: Container status and logs
           when: always
@@ -161,6 +164,9 @@ jobs:
           name: Log in to Docker Hub
           # DOCKERHUB_USERNAME and DOCKERHUB_TOKEN come from the docker-hub context.
           command: echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
+      - run:
+          name: Install QEMU so the arm64 images can run their build commands (apk upgrade)
+          command: sudo apt-get update && sudo apt-get install -y qemu-user-static
       - run:
           name: Set up a builder that can make Intel and Apple Silicon images
           command: docker buildx create --name multiarch --driver docker-container --use
