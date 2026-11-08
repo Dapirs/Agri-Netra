@@ -18,7 +18,7 @@ const STATUS_CONFIG = {
  *   }
  * }} props
  */
-export default function ResultCard({ result }) {
+export default function ResultCard({ result, ref }) {
   if (!result) return null;
 
   const { disease, confidence, isHealthy, treatment, prevention } = result;
@@ -32,7 +32,7 @@ export default function ResultCard({ result }) {
   const dash = (conf / 100) * circumference;
 
   return (
-    <article className="result-card" aria-label="Diagnosis result">
+    <article ref={ref} className="result-card" aria-label="Diagnosis result">
       {/* ── Header ─────────────────────────────── */}
       <div className="result-card__header">
         <div className="result-card__title-row">

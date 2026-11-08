@@ -26,7 +26,7 @@ const ADVICE_COLOUR = {
  *   }
  * }} props
  */
-export default function IrrigationResult({ result }) {
+export default function IrrigationResult({ result, ref }) {
   if (!result) return null;
 
   const { crop, stage, et0, kc, etc, advice, weather_cached, notes, weather } = result;
@@ -35,7 +35,7 @@ export default function IrrigationResult({ result }) {
   const adviceColour = ADVICE_COLOUR[advice];
 
   return (
-    <article className="irr-result" aria-label="Irrigation recommendation">
+    <article ref={ref} className="irr-result" aria-label="Irrigation recommendation">
       {/* ── Cached weather warning ─────────────────── */}
       {weather_cached && (
         <div className="irr-result__warning" role="alert">

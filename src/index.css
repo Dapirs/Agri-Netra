@@ -32,6 +32,12 @@ html {
   font-size: 16px;
 }
 
+/* Results are scrolled into view on arrival; stop below the sticky header, not under it. */
+.result-card,
+.irr-result {
+  scroll-margin-top: 5.5rem;
+}
+
 body {
   font-family: var(--font-sans);
   background-color: var(--color-bg);
