@@ -49,4 +49,33 @@ describe('ResultCard', () => {
   it('renders nothing without a result', () => {
     expect(render(null)).toBe('');
   });
+
+  it('shows treatment and prevention steps as bullet points', () => {
+    const html = render({
+      ...diseased,
+      treatment: ['Remove infected leaves.', 'Spray copper fungicide.'],
+      prevention: ['Rotate crops.', 'Water at the base.', 'Stake plants.'],
+    });
+
+    expect(html.match(/<ul/g)).toHaveLength(2);
+    expect(html.match(/<li>/g)).toHaveLength(5);
+    expect(html).toContain('<li>Spray copper fungicide.</li>');
+  });
+
+  it('still shows plain text, such as the fallback advice, as a paragraph', () => {
+    const html = render(diseased);
+
+    expect(html).not.toContain('<ul');
+    expect(html).toContain('Remove infected leaves.');
+  });
+
+  it('tells the farmer to confirm a diseased result before spraying anything', () => {
+    expect(render(diseased)).toContain(
+      'This is an automatic diagnosis and can be wrong. Before buying or spraying any chemical, confirm with your local Krishi Vigyan Kendra or agriculture officer.'
+    );
+  });
+
+  it('does not show that warning for a healthy leaf', () => {
+    expect(render(healthy)).not.toContain('Krishi Vigyan Kendra');
+  });
 });

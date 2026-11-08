@@ -1,4 +1,21 @@
 /* ── Status config ───────────────────────────────────────── */
+const SAFETY_NOTE =
+  'This is an automatic diagnosis and can be wrong. Before buying or spraying any chemical, confirm with your local Krishi Vigyan Kendra or agriculture officer.';
+
+/** Steps (an array) as bullet points; plain text, such as fallback advice, as a paragraph. */
+function Advice({ value, fallback }) {
+  if (Array.isArray(value)) {
+    return (
+      <ul className="result-section__list">
+        {value.map((step) => (
+          <li key={step}>{step}</li>
+        ))}
+      </ul>
+    );
+  }
+  return <p className="result-section__text">{value ?? fallback}</p>;
+}
+
 const STATUS_CONFIG = {
   healthy: { label: 'Healthy', className: 'badge--green', icon: '✓' },
   diseased: { label: 'Diseased', className: 'badge--red', icon: '✕' },
@@ -13,8 +30,8 @@ const STATUS_CONFIG = {
  *     disease:    string,
  *     confidence: number,          // 0-100
  *     isHealthy:  boolean,
- *     treatment:  string,
- *     prevention: string,
+ *     treatment:  string | string[],   // steps, or plain text
+ *     prevention: string | string[],
  *   }
  * }} props
  */
@@ -114,9 +131,8 @@ export default function ResultCard({ result, ref }) {
             <h3 id="treatment-heading" className="result-section__title">
               Treatment
             </h3>
-            <p className="result-section__text">
-              {treatment ?? 'No treatment information available.'}
-            </p>
+            <Advice value={treatment} fallback="No treatment information available." />
+            {isHealthy === false && <p className="result-card__safety">{SAFETY_NOTE}</p>}
           </div>
         </section>
 
@@ -140,9 +156,7 @@ export default function ResultCard({ result, ref }) {
             <h3 id="prevention-heading" className="result-section__title">
               Prevention
             </h3>
-            <p className="result-section__text">
-              {prevention ?? 'No prevention information available.'}
-            </p>
+            <Advice value={prevention} fallback="No prevention information available." />
           </div>
         </section>
       </div>
