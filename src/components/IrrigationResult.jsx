@@ -1,218 +1,189 @@
-const ADVICE_LABEL = {
-  skip: 'Skip today',
-  check: 'Check tomorrow',
-  irrigate: 'Irrigate',
-};
+import { useId, useState } from 'react';
 
-const ADVICE_COLOUR = {
-  skip: '#4ade80',
-  check: '#facc15',
-  irrigate: '#f87171',
+/* The decision, in plain words. Each state has its own word and icon, so the
+   meaning never depends on the shade of green alone. */
+const ADVICE = {
+  irrigate: { title: 'Irrigate today', reason: 'The soil is dry.', Icon: DropIcon },
+  check: { title: 'Check tomorrow', reason: 'The soil is moist enough for now.', Icon: ClockIcon },
+  skip: { title: 'Skip today', reason: 'The soil is wet, so no water is needed.', Icon: LeafIcon },
 };
 
 /**
  * IrrigationResult
- * Displays the irrigation recommendation returned from the backend.
+ * The decision first; ET₀, Kc and ETc only when the farmer asks for the numbers.
  *
  * @param {{
  *   result: {
- *     crop:            string,
- *     stage:           string,
- *     et0:             number,   // Reference evapotranspiration (mm/day)
- *     kc:              number,   // Crop coefficient
- *     etc:             number,   // Crop water use today (mm/day)
- *     advice:          'skip' | 'check' | 'irrigate',
- *     weather_cached:  boolean,  // true = weather data is from cache
- *   }
+ *     crop:           string,
+ *     stage:          string,
+ *     et0:            number,   // reference evapotranspiration (mm/day)
+ *     kc:             number,   // crop coefficient
+ *     etc:            number,   // crop water use today (mm/day)
+ *     advice:         'skip' | 'check' | 'irrigate',
+ *     weather_cached: boolean,  // true = saved weather, not live
+ *     weather:        { temp_c?: number, humidity?: number, wind_ms?: number },
+ *   },
+ *   ref?: import('react').Ref<HTMLElement>,
  * }} props
  */
 export default function IrrigationResult({ result, ref }) {
+  const [open, setOpen] = useState(false);
+  const numbersId = useId();
+
   if (!result) return null;
 
-  const { crop, stage, et0, kc, etc, advice, weather_cached, notes, weather } = result;
-
-  /* Colour of the main number follows the advice */
-  const adviceColour = ADVICE_COLOUR[advice];
+  const { crop, stage, et0, kc, etc, advice, weather_cached, weather } = result;
+  const { title, reason, Icon } = ADVICE[advice];
 
   return (
-    <article ref={ref} className="irr-result" aria-label="Irrigation recommendation">
-      {/* ── Cached weather warning ─────────────────── */}
-      {weather_cached && (
-        <div className="irr-result__warning" role="alert">
-          <svg
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            aria-hidden="true"
-          >
-            <path
-              d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0
-                     001.71-3L13.71 3.86a2 2 0 00-3.42 0z"
-            />
-            <line x1="12" y1="9" x2="12" y2="13" />
-            <line x1="12" y1="17" x2="12.01" y2="17" />
-          </svg>
-          <span>
-            Using <strong>cached weather data</strong> — live conditions may differ.
-          </span>
-        </div>
-      )}
+    <article
+      ref={ref}
+      className="irr-result"
+      data-advice={advice}
+      data-open={open}
+      aria-label="Irrigation recommendation"
+    >
+      <div className="irr-result__body">
+        <p className="irr-result__meta">
+          <b>{crop}</b> · {stage} stage
+        </p>
 
-      {/* ── Header: crop + stage ───────────────────── */}
-      <div className="irr-result__header">
-        <div className="irr-result__meta">
-          <span className="irr-result__tag">{crop}</span>
-          <span className="irr-result__separator" aria-hidden="true">
-            ·
-          </span>
-          <span className="irr-result__tag irr-result__tag--muted">{stage} Stage</span>
+        <div className="irr-result__decision">
+          <div className="irr-result__icon" aria-hidden="true">
+            <Icon />
+          </div>
+          <h2>{title}</h2>
         </div>
-        <h2 className="irr-result__section-label">Irrigation Recommendation</h2>
-      </div>
 
-      {/* ── Advisory note ───────────────────────────── */}
-      {notes && (
-        <div className="irr-result__warning" role="note">
-          <svg
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            aria-hidden="true"
-          >
-            <circle cx="12" cy="12" r="10" />
-            <line x1="12" y1="16" x2="12" y2="12" />
-            <line x1="12" y1="8" x2="12.01" y2="8" />
-          </svg>
-          <span>{notes}</span>
-        </div>
-      )}
-
-      {/* ── Hero: crop water use ───────────────────── */}
-      <div className="irr-result__hero">
-        <div
-          className="irr-result__hero-ring"
-          style={{ '--ring-color': adviceColour }}
-          aria-hidden="true"
-        >
-          <WaterDropIcon color={adviceColour} />
-        </div>
-        <div className="irr-result__hero-text">
-          <p className="irr-result__hero-value" style={{ color: adviceColour }}>
-            {etc != null ? etc.toFixed(1) : '—'}
-            <span className="irr-result__hero-unit">mm</span>
+        {weather_cached && (
+          <p className="irr-result__note" role="note">
+            Using saved weather from earlier. Live conditions may differ.
           </p>
-          <p className="irr-result__hero-label">Crop Water Use Today</p>
-        </div>
+        )}
+
+        <p className="irr-result__why">
+          {reason} In this weather your {crop.toLowerCase()} uses about <b>{etc.toFixed(1)} mm</b>{' '}
+          of water a day.
+        </p>
+
+        <WeatherSummary weather={weather} />
       </div>
 
-      {/* ── Divider ────────────────────────────────── */}
-      <hr className="irr-result__divider" />
+      <button
+        type="button"
+        className="irr-result__toggle"
+        aria-expanded={open}
+        aria-controls={numbersId}
+        onClick={() => setOpen((isOpen) => !isOpen)}
+      >
+        {open ? 'Hide the numbers' : 'Show the numbers'}
+        <ChevronIcon />
+      </button>
 
-      {/* ── 2×2 metrics grid ───────────────────────── */}
-      <div className="irr-result__grid" role="list">
-        <MetricTile
-          label="ET₀"
-          value={et0 != null ? et0.toFixed(2) : '—'}
-          unit="mm/day"
-          description="Reference evapotranspiration"
-          icon={<ET0Icon />}
-        />
-
-        <MetricTile
-          label="Kc"
-          value={kc != null ? kc.toFixed(2) : '—'}
-          unit=""
-          description="Crop coefficient for this stage"
-          icon={<KcIcon />}
-        />
-
-        <MetricTile
-          label="ETc"
-          value={et0 != null && kc != null ? (et0 * kc).toFixed(2) : '—'}
-          unit="mm/day"
-          description="Crop evapotranspiration (ET₀ × Kc)"
-          icon={<ETcIcon />}
-        />
-
-        <MetricTile
-          label="Advice"
-          value={ADVICE_LABEL[advice] ?? '—'}
-          unit=""
-          description="Based on your soil moisture"
-          icon={<DepthIcon />}
-          highlight
-        />
-      </div>
-
-      {/* ── Weather summary ────────────────────────── */}
-      {weather && (
-        <div className="irr-result__grid" role="list" aria-label="Current weather summary">
-          <MetricTile
-            label="Temp"
-            value={weather.temp_c != null ? Number(weather.temp_c).toFixed(1) : '—'}
-            unit="degC"
-            description="Air temperature"
-            icon={<ET0Icon />}
-          />
-          <MetricTile
-            label="Humidity"
-            value={weather.humidity != null ? Number(weather.humidity).toFixed(0) : '—'}
-            unit="%"
-            description="Relative humidity"
-            icon={<KcIcon />}
-          />
-          <MetricTile
-            label="Wind"
-            value={weather.wind_ms != null ? Number(weather.wind_ms).toFixed(1) : '—'}
-            unit="m/s"
-            description="Wind speed"
-            icon={<ETcIcon />}
-          />
+      {/* Stays in the page so it can slide open; `inert` hides it from taps and screen readers */}
+      <div id={numbersId} className="irr-result__numbers" inert={!open}>
+        <div>
+          <dl className="irr-result__rows">
+            <div className="irr-result__row">
+              <dt>
+                How strongly today&apos;s weather dries plants<small>ET₀ (FAO-56)</small>
+              </dt>
+              <dd>{et0.toFixed(1)} mm/day</dd>
+            </div>
+            <div className="irr-result__row">
+              <dt>
+                {crop} factor at {stage.toLowerCase()} stage<small>Kc</small>
+              </dt>
+              <dd>{kc.toFixed(2)}</dd>
+            </div>
+            <div className="irr-result__row">
+              <dt>
+                Your crop&apos;s water use<small>ETc = ET₀ × Kc</small>
+              </dt>
+              <dd>{etc.toFixed(1)} mm/day</dd>
+            </div>
+          </dl>
         </div>
-      )}
+      </div>
     </article>
   );
 }
 
-/* ─── Metric tile ────────────────────────────────────────── */
-function MetricTile({ label, value, unit, description, icon, highlight }) {
+/** Temperature, humidity and wind on one line; readings that are missing are left out. */
+function WeatherSummary({ weather }) {
+  if (!weather) return null;
+  const { temp_c, humidity, wind_ms } = weather;
+
   return (
-    <div
-      className={`irr-tile ${highlight ? 'irr-tile--highlight' : ''}`}
-      role="listitem"
-      aria-label={`${label}: ${value}${unit ? ' ' + unit : ''}`}
-    >
-      <div className="irr-tile__icon" aria-hidden="true">
-        {icon}
-      </div>
-      <div className="irr-tile__body">
-        <p className="irr-tile__label">{label}</p>
-        <p className="irr-tile__value">
-          {value}
-          {unit && <span className="irr-tile__unit"> {unit}</span>}
-        </p>
-        <p className="irr-tile__desc">{description}</p>
-      </div>
-    </div>
+    <p className="irr-result__weather">
+      {temp_c != null && (
+        <span>
+          <ThermometerIcon /> {Math.round(temp_c)} °C
+        </span>
+      )}
+      {humidity != null && (
+        <span>
+          <HumidityIcon /> {Math.round(humidity)}% humidity
+        </span>
+      )}
+      {wind_ms != null && (
+        <span>
+          <WindIcon /> {Number(wind_ms).toFixed(1)} m/s
+        </span>
+      )}
+    </p>
   );
 }
 
-/* ─── Inline icons ───────────────────────────────────────── */
-function WaterDropIcon({ color }) {
+/* ── Icons ───────────────────────────────────────────────── */
+function DropIcon() {
   return (
-    <svg viewBox="0 0 24 24" fill={color ?? 'currentColor'} aria-hidden="true">
-      <path d="M12 2C6.5 9 4 13.5 4 16a8 8 0 0016 0c0-2.5-2.5-7-8-14z" opacity=".85" />
+    <svg viewBox="0 0 24 24" fill="currentColor">
+      <path d="M12 2.5c-.3 0-.6.2-.8.4C9.6 5 5 11 5 14.5A7 7 0 0 0 19 14.5C19 11 14.4 5 12.8 2.9c-.2-.2-.5-.4-.8-.4z" />
     </svg>
   );
 }
 
-function ET0Icon() {
+function ClockIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.2"
+      strokeLinecap="round"
+    >
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 7v5l3 2" />
+    </svg>
+  );
+}
+
+function LeafIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor">
+      <path d="M20 4c-7 0-12 3.5-13.3 9.6-.4 1.8-.3 3.4.1 4.7L4.3 20.8l1.4 1.4 2.4-2.4c1.2.6 2.6.8 4.1.6C18.4 19.6 20.6 12 20 4zm-8.1 14.4c-1 .1-1.9 0-2.7-.3l5.5-5.5-1.4-1.4-5.5 5.5c-.2-.9-.2-1.9 0-3 1-4.6 4.6-7.4 10.2-7.7-.3 6.6-2.4 11.8-6.1 12.4z" />
+    </svg>
+  );
+}
+
+function ThermometerIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+      <path d="M14 14.8V4a2 2 0 1 0-4 0v10.8a4 4 0 1 0 4 0z" />
+    </svg>
+  );
+}
+
+function HumidityIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+      <path d="M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z" />
+    </svg>
+  );
+}
+
+function WindIcon() {
   return (
     <svg
       viewBox="0 0 24 24"
@@ -220,64 +191,26 @@ function ET0Icon() {
       stroke="currentColor"
       strokeWidth="2"
       strokeLinecap="round"
-      strokeLinejoin="round"
+      aria-hidden="true"
     >
-      <circle cx="12" cy="12" r="5" />
-      <line x1="12" y1="1" x2="12" y2="3" />
-      <line x1="12" y1="21" x2="12" y2="23" />
-      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
-      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
-      <line x1="1" y1="12" x2="3" y2="12" />
-      <line x1="21" y1="12" x2="23" y2="12" />
-      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
-      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+      <path d="M3 8h11a3 3 0 1 0-3-3M3 16h15a3 3 0 1 1-3 3M3 12h7" />
     </svg>
   );
 }
 
-function KcIcon() {
+function ChevronIcon() {
   return (
     <svg
+      className="irr-result__chev"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
-      strokeWidth="2"
+      strokeWidth="2.5"
       strokeLinecap="round"
       strokeLinejoin="round"
+      aria-hidden="true"
     >
-      <path d="M12 2a10 10 0 000 20A10 10 0 0012 2z" />
-      <path d="M12 8c-2 4-2 8 0 12M12 8c2 4 2 8 0 12" />
-    </svg>
-  );
-}
-
-function ETcIcon() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
-    </svg>
-  );
-}
-
-function DepthIcon() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M12 2v20M2 12h20" />
-      <path d="M17 7l-5 5-5-5M7 17l5-5 5 5" />
+      <path d="M6 9l6 6 6-6" />
     </svg>
   );
 }
