@@ -766,6 +766,28 @@ h6 {
   padding-left: 0.25rem;
 }
 
+.irr-field__status-msg {
+  font-size: 0.75rem;
+  color: #2d6a4f;
+  padding-left: 0.25rem;
+}
+
+/* Location section: a fieldset without the browser's default box */
+.irr-location {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.irr-location__locate {
+  width: 100%;
+  justify-content: center;
+}
+
 /* Chevron */
 .irr-field__chevron {
   position: absolute;

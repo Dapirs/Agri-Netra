@@ -29,6 +29,7 @@ export default function IrrigationForm({ onSubmit, loading = false }) {
   const [locating, setLocating] = useState(false);
   const [locationDetected, setLocationDetected] = useState(false);
   const [locationError, setLocationError] = useState('');
+  const [manualOpen, setManualOpen] = useState(false);
 
   const latValid = parseCoordinate(values.lat, 90) !== null;
   const lonValid = parseCoordinate(values.lon, 180) !== null;
@@ -54,6 +55,7 @@ export default function IrrigationForm({ onSubmit, loading = false }) {
     if (!navigator.geolocation) {
       setLocationDetected(false);
       setLocationError('Geolocation is not supported on this device/browser.');
+      setManualOpen(true);
       return;
     }
 
@@ -75,6 +77,7 @@ export default function IrrigationForm({ onSubmit, loading = false }) {
       (error) => {
         setLocationDetected(false);
         setLocationError(`Unable to get location: ${error.message}`);
+        setManualOpen(true);
         setLocating(false);
       },
       { enableHighAccuracy: true, timeout: 10000 }
@@ -133,47 +136,55 @@ export default function IrrigationForm({ onSubmit, loading = false }) {
           options={STAGES}
         />
 
-        <details className="irr-advanced" open>
-          <summary className="irr-advanced__summary">Advanced / Location</summary>
-          <div className="irr-advanced__content">
-            <button
-              type="button"
-              className="btn btn--secondary"
-              onClick={handleUseMyLocation}
-              disabled={loading || locating}
-            >
-              {locating ? 'Getting location...' : 'Use My Location'}
-            </button>
-            {locationDetected && (
-              <p className="irr-field__error-msg" role="status">
-                Location detected ✓
-              </p>
-            )}
-            {locationError && (
-              <p className="irr-field__error-msg" role="alert">
-                {locationError}
-              </p>
-            )}
-            <TextField
-              id="irr-lat"
-              label="Latitude"
-              icon={<PinIcon />}
-              value={values.lat}
-              onChange={handleChange('lat')}
-              error={latError}
-              placeholder="e.g. 28.6139"
-            />
-            <TextField
-              id="irr-lon"
-              label="Longitude"
-              icon={<PinIcon />}
-              value={values.lon}
-              onChange={handleChange('lon')}
-              error={lonError}
-              placeholder="e.g. 77.2090"
-            />
-          </div>
-        </details>
+        {/* Location: GPS first; typed coordinates are the fallback, opened automatically on failure */}
+        <fieldset className="irr-location">
+          <legend className="irr-field__label">Location</legend>
+          <button
+            type="button"
+            className="btn btn--secondary irr-location__locate"
+            onClick={handleUseMyLocation}
+            disabled={loading || locating}
+          >
+            {locating ? 'Getting location...' : 'Use My Location'}
+          </button>
+          {locationDetected && (
+            <p className="irr-field__status-msg" role="status">
+              Location detected ✓
+            </p>
+          )}
+          {locationError && (
+            <p className="irr-field__error-msg" role="alert">
+              {locationError}
+            </p>
+          )}
+          <details
+            className="irr-advanced"
+            open={manualOpen}
+            onToggle={(e) => setManualOpen(e.currentTarget.open)}
+          >
+            <summary className="irr-advanced__summary">Enter coordinates manually</summary>
+            <div className="irr-advanced__content">
+              <TextField
+                id="irr-lat"
+                label="Latitude"
+                icon={<PinIcon />}
+                value={values.lat}
+                onChange={handleChange('lat')}
+                error={latError}
+                placeholder="e.g. 28.6139"
+              />
+              <TextField
+                id="irr-lon"
+                label="Longitude"
+                icon={<PinIcon />}
+                value={values.lon}
+                onChange={handleChange('lon')}
+                error={lonError}
+                placeholder="e.g. 77.2090"
+              />
+            </div>
+          </details>
+        </fieldset>
 
         <SelectField
           id="irr-soil-moisture"
