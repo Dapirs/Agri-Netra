@@ -81,7 +81,7 @@ export default function App() {
   /* ── Page titles ────────────────────────────────────── */
   const PAGE_TITLE = {
     scanner: 'Scan Crop',
-    dashboard: 'Health Dashboard',
+    dashboard: 'Your scans',
     irrigation: 'Irrigation Advisor',
   };
 
