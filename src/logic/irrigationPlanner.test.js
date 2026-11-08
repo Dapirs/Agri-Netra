@@ -103,7 +103,12 @@ describe('planIrrigation: crop and stage', () => {
     await expect(plan({ crop: 'Unobtainium' })).rejects.toThrow(/Unknown crop "Unobtainium"/);
   });
 
-  it.todo('rejects an unknown growth stage instead of silently using mid-season Kc');
+  it.each([['Flowerng'], [''], [undefined], ['constructor']])(
+    'rejects the growth stage %j instead of silently using mid-season Kc',
+    async (stage) => {
+      await expect(plan({ stage })).rejects.toThrow(/Unknown growth stage/);
+    }
+  );
 });
 
 describe('planIrrigation: soil moisture advice', () => {

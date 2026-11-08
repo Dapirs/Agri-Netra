@@ -58,7 +58,13 @@ function resolveKc(crop, stage) {
     );
   }
 
-  const kcKey = STAGE_KC_MAP[stage.toLowerCase()] || 'mid';
+  const stageKey = String(stage).toLowerCase();
+  if (!Object.hasOwn(STAGE_KC_MAP, stageKey)) {
+    throw new Error(
+      `Unknown growth stage "${stage}". Available: ${Object.keys(STAGE_KC_MAP).join(', ')}`
+    );
+  }
+  const kcKey = STAGE_KC_MAP[stageKey];
   const kc = entry[kcKey] ?? entry.mid;
 
   return { kc, kcKey };
