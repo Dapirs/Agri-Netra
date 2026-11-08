@@ -1,21 +1,6 @@
+import { Advice, SafetyNote } from './Advice.jsx';
+
 /* ── Status config ───────────────────────────────────────── */
-const SAFETY_NOTE =
-  'This is an automatic diagnosis and can be wrong. Before buying or spraying any chemical, confirm with your local Krishi Vigyan Kendra or agriculture officer.';
-
-/** Steps (an array) as bullet points; plain text, such as fallback advice, as a paragraph. */
-function Advice({ value, fallback }) {
-  if (Array.isArray(value)) {
-    return (
-      <ul className="result-section__list">
-        {value.map((step) => (
-          <li key={step}>{step}</li>
-        ))}
-      </ul>
-    );
-  }
-  return <p className="result-section__text">{value ?? fallback}</p>;
-}
-
 const STATUS_CONFIG = {
   healthy: { label: 'Healthy', className: 'badge--green', icon: '✓' },
   diseased: { label: 'Diseased', className: 'badge--red', icon: '✕' },
@@ -132,7 +117,7 @@ export default function ResultCard({ result, ref }) {
               Treatment
             </h3>
             <Advice value={treatment} fallback="No treatment information available." />
-            {isHealthy === false && <p className="result-card__safety">{SAFETY_NOTE}</p>}
+            {isHealthy === false && <SafetyNote />}
           </div>
         </section>
 
