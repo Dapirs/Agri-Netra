@@ -7,6 +7,7 @@
   --color-surface: #ede4d5;
   --color-text: #1a1a2e;
   --color-muted: #5c5c72;
+  --color-error: #a3321f; /* deep warm brick red: readable on cream, distinct from "needs care" */
   --font-sans: Calibri, 'Segoe UI', system-ui, sans-serif;
 }
 
@@ -162,7 +163,7 @@ h6 {
 }
 
 .upload-box__sublabel {
-  font-size: 0.78rem;
+  font-size: 0.875rem;
   color: var(--color-muted);
 }
 
@@ -247,7 +248,6 @@ h6 {
 }
 
 .btn:disabled {
-  opacity: 0.45;
   cursor: not-allowed;
   transform: none !important;
 }
@@ -320,13 +320,13 @@ h6 {
 .status-banner--error {
   background: rgba(239, 68, 68, 0.1);
   border: 1px solid rgba(239, 68, 68, 0.3);
-  color: #f87171;
+  color: var(--color-error);
 }
 
 /* Scan error */
 .scan-error {
-  font-size: 0.85rem;
-  color: #f87171;
+  font-size: 0.875rem;
+  color: var(--color-error);
   text-align: right;
 }
 
@@ -390,7 +390,7 @@ h6 {
   gap: 0.3rem;
   padding: 0.25rem 0.75rem;
   border-radius: 999px;
-  font-size: 0.78rem;
+  font-size: 0.8125rem;
   font-weight: 700;
   letter-spacing: 0.03em;
   text-transform: uppercase;
@@ -398,12 +398,12 @@ h6 {
 }
 
 .result-badge__icon {
-  font-size: 0.7rem;
+  font-size: 0.8125rem;
 }
 
 .badge--green {
   background: rgba(22, 163, 74, 0.18);
-  color: #4ade80;
+  color: #2f6a47;
   border: 1px solid rgba(22, 163, 74, 0.35);
 }
 
@@ -415,7 +415,7 @@ h6 {
 
 .badge--red {
   background: rgba(239, 68, 68, 0.15);
-  color: #f87171;
+  color: var(--color-error);
   border: 1px solid rgba(239, 68, 68, 0.3);
 }
 
@@ -449,7 +449,7 @@ h6 {
 }
 
 .confidence-ring__sub {
-  font-size: 0.55rem;
+  font-size: 0.8125rem;
   color: var(--color-muted);
   text-transform: uppercase;
   letter-spacing: 0.04em;
@@ -511,7 +511,7 @@ h6 {
 }
 
 .result-section__title {
-  font-size: 0.78rem;
+  font-size: 0.8125rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.06em;
@@ -607,7 +607,7 @@ h6 {
 }
 
 .app-header__sub {
-  font-size: 0.7rem;
+  font-size: 0.8125rem;
   color: rgba(255, 255, 255, 0.65);
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -630,7 +630,7 @@ h6 {
 .app-footer {
   text-align: center;
   padding: 1rem;
-  font-size: 0.75rem;
+  font-size: 0.8125rem;
   color: var(--color-muted);
   border-top: 1px solid rgba(255, 255, 255, 0.06);
 }
@@ -684,7 +684,7 @@ h6 {
 }
 
 .irr-form__subtitle {
-  font-size: 0.775rem;
+  font-size: 0.875rem;
   color: var(--color-muted);
   margin-top: 0.15rem;
 }
@@ -704,7 +704,7 @@ h6 {
 }
 
 .irr-field__label {
-  font-size: 0.78rem;
+  font-size: 0.8125rem;
   font-weight: 600;
   color: var(--color-muted);
   text-transform: uppercase;
@@ -785,13 +785,13 @@ h6 {
 }
 
 .irr-field__error-msg {
-  font-size: 0.75rem;
-  color: #f87171;
+  font-size: 0.875rem;
+  color: var(--color-error);
   padding-left: 0.25rem;
 }
 
 .irr-field__status-msg {
-  font-size: 0.75rem;
+  font-size: 0.875rem;
   color: #2d6a4f;
   padding-left: 0.25rem;
 }
@@ -1433,7 +1433,7 @@ h6 {
 
 /* Label */
 .navbar__label {
-  font-size: 0.68rem;
+  font-size: 0.8125rem;
   font-weight: 600;
   letter-spacing: 0.02em;
   line-height: 1;
@@ -1441,7 +1441,7 @@ h6 {
 }
 
 .navbar__tab:not(.navbar__tab--active) .navbar__label {
-  opacity: 0.65;
+  color: var(--color-muted);
 }
 
 /* Push main content above the fixed navbar */
@@ -1472,7 +1472,7 @@ h6 {
 }
 
 .app-header__sub {
-  color: rgba(45, 106, 79, 0.8);
+  color: #2d6a4f;
 }
 
 .upload-box,
@@ -1497,6 +1497,17 @@ h6 {
   background: rgba(212, 168, 67, 0.12);
   border-color: rgba(212, 168, 67, 0.35);
   color: #1a1a2e;
+}
+
+/* Disabled buttons stay readable: a calm grey-green, not a near-invisible 45% fade */
+.btn--primary:disabled {
+  background: #d5e2d9;
+  color: #2f4a3a;
+  box-shadow: none;
+}
+
+.btn--secondary:disabled {
+  color: var(--color-muted);
 }
 
 .status-banner--loading {

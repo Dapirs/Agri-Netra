@@ -85,7 +85,7 @@ export default function ResultCard({ result, ref }) {
           </svg>
           <div className="confidence-ring__label">
             <span className="confidence-ring__pct">{conf}%</span>
-            <span className="confidence-ring__sub">confidence</span>
+            <span className="confidence-ring__sub">sure</span>
           </div>
         </div>
       </div>
