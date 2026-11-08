@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { StrictMode } from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent, cleanup, act, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, cleanup, act, waitFor, within } from '@testing-library/react';
 import Scanner from './Scanner.jsx';
 import { TREATMENT_DB } from '../data/treatmentDB';
 
@@ -414,6 +414,24 @@ describe('Scanner scanning', () => {
     expect(screen.getByRole('alert').textContent).toMatch(/clear photo of a plant leaf/);
   });
 
+  it('offers the photo tips when the photo was not clear enough', async () => {
+    mocks.model = fakeModel(peaked(TOMATO_HEALTHY, 0.5));
+    const onResult = vi.fn();
+    const { container } = render(<Scanner onResult={onResult} />);
+    const tips = () => screen.getByRole('button', { name: /^Photo tips/ });
+
+    choose(container, imageOf(MB));
+    clickScan();
+    await waitFor(() => expect(onResult).toHaveBeenCalledWith(null));
+    expect(tips().getAttribute('aria-expanded')).toBe('false');
+
+    fireEvent.click(
+      within(screen.getByRole('alert')).getByRole('button', { name: 'See photo tips' })
+    );
+
+    expect(tips().getAttribute('aria-expanded')).toBe('true');
+  });
+
   it('shows the error when the image cannot be processed', async () => {
     mocks.model = fakeModel(peaked(TOMATO_HEALTHY, 0.97));
     mocks.preprocessImage.mockRejectedValue(new Error('This image is corrupt'));
@@ -423,7 +441,9 @@ describe('Scanner scanning', () => {
     choose(container, imageOf(MB));
     clickScan();
 
-    expect((await screen.findByRole('alert')).textContent).toMatch(/This image is corrupt/);
+    const alert = await screen.findByRole('alert');
+    expect(alert.textContent).toMatch(/This image is corrupt/);
+    expect(within(alert).queryByRole('button')).toBe(null); // photo tips would not help here
   });
 
   it('does not print the model scores to the console', async () => {

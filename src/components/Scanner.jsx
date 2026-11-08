@@ -3,8 +3,13 @@ import useModel from '../hooks/useModel';
 import useCamera from '../hooks/useCamera';
 import preprocessImage from '../utils/preprocessImage';
 import { mapPrediction } from '../logic/predictionMapper';
+import ScanGuide from './ScanGuide.jsx';
 
 /* ─────────────────────────────────────────────────────────────────── */
+
+// Shown when the model is not sure enough; photo tips are what helps here.
+const UNCLEAR_PHOTO =
+  'Could not identify a crop disease. Please upload a clear photo of a plant leaf.';
 
 /**
  * Scanner
@@ -23,6 +28,7 @@ export default function Scanner({ onResult }) {
 
   const [scanning, setScanning] = useState(false);
   const [scanError, setScanError] = useState(null);
+  const [tipsOpen, setTipsOpen] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
   const [cameraStream, setCameraStream] = useState(null);
   const cameraOpen = cameraStream !== null;
@@ -203,9 +209,7 @@ export default function Scanner({ onResult }) {
       const topIndex = scores.indexOf(maxConfidence);
 
       if (maxConfidence < 0.85) {
-        setScanError(
-          'Could not identify a crop disease. Please upload a clear photo of a plant leaf.'
-        );
+        setScanError(UNCLEAR_PHOTO);
         onResult?.(null);
         return;
       }
@@ -434,6 +438,14 @@ export default function Scanner({ onResult }) {
       {shownError && (
         <p className="scan-error" role="alert">
           ⚠ {shownError}
+          {shownError === UNCLEAR_PHOTO && (
+            <>
+              {' '}
+              <button type="button" className="scan-error__tips" onClick={() => setTipsOpen(true)}>
+                See photo tips
+              </button>
+            </>
+          )}
         </p>
       )}
 
@@ -442,6 +454,8 @@ export default function Scanner({ onResult }) {
           ⚠ {cameraError}
         </p>
       )}
+
+      <ScanGuide tipsOpen={tipsOpen} onTipsOpenChange={setTipsOpen} />
     </div>
   );
 }

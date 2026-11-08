@@ -1343,6 +1343,186 @@ h6 {
   }
 }
 
+/* ── ScanGuide component ───────────────────────────────── */
+/* Photo tips and supported crops, folded under the scan buttons. Card look comes
+   from the shared card rule in the theme section. */
+.scan-guide {
+  width: 100%;
+  border: 1px solid;
+  border-radius: 18px;
+  overflow: hidden;
+  --guide-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.scan-guide__fold {
+  scroll-margin-top: 5.5rem; /* when scrolled into view, stay clear of the header */
+  scroll-margin-bottom: 6rem; /* and stop above the bottom nav */
+}
+
+.scan-guide__fold + .scan-guide__fold {
+  border-top: 1px solid #efe7d8;
+}
+
+.scan-guide__toggle {
+  width: 100%;
+  min-height: 3rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.85rem 1rem;
+  border: 0;
+  background: transparent;
+  font-size: 1rem;
+  font-weight: 600;
+  text-align: left;
+  color: var(--color-primary);
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.scan-guide__toggle:hover {
+  background: #f7f2e7;
+}
+
+.scan-guide__toggle:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
+}
+
+.scan-guide__chev {
+  flex: none;
+  width: 1.1rem;
+  height: 1.1rem;
+}
+
+.scan-guide__fold[data-open='true'] .scan-guide__chev {
+  transform: rotate(180deg);
+}
+
+/* Slides open by animating the grid row from 0 to its natural height */
+.scan-guide__panel {
+  display: grid;
+  grid-template-rows: 0fr;
+}
+
+.scan-guide__fold[data-open='true'] .scan-guide__panel {
+  grid-template-rows: 1fr;
+}
+
+.scan-guide__panel > div {
+  overflow: hidden;
+}
+
+.scan-guide__tips,
+.scan-guide__crops {
+  list-style: none;
+}
+
+.scan-guide__tips {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+  padding: 0.1rem 1rem 1rem;
+}
+
+.scan-guide__tip {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.scan-guide__tip b {
+  display: block;
+  font-size: 1rem;
+  color: var(--color-text);
+}
+
+.scan-guide__tip b + span {
+  font-size: 0.875rem;
+  color: var(--color-muted);
+}
+
+.scan-guide__icon {
+  flex: none;
+  width: 2.4rem;
+  height: 2.4rem;
+  border-radius: 0.75rem;
+  display: grid;
+  place-items: center;
+  background: #e9f3ea;
+  color: #3f7d57;
+}
+
+.scan-guide__icon svg {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+.scan-guide__crop {
+  display: grid;
+  grid-template-columns: 7rem 1fr;
+  align-items: baseline;
+  gap: 0.75rem;
+  padding: 0.65rem 1rem;
+  border-top: 1px dashed #e6dcc8;
+}
+
+.scan-guide__crop b {
+  font-size: 1rem;
+  color: var(--color-text);
+}
+
+.scan-guide__crop span {
+  font-size: 0.875rem;
+  color: var(--color-muted);
+}
+
+/* Partly covered crops: warm olive-gold, and the words say what is missing */
+.scan-guide__crop .scan-guide__partial {
+  color: #6b5010;
+}
+
+.scan-guide__note {
+  padding: 0.65rem 1rem 1rem;
+  border-top: 1px dashed #e6dcc8;
+  font-size: 0.875rem;
+  color: var(--color-muted);
+}
+
+/* "See photo tips" inside the scan error: looks like a link, works as a button */
+.scan-error__tips {
+  padding: 0.25rem 0;
+  border: 0;
+  background: transparent;
+  font-weight: 600;
+  color: var(--color-primary);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.scan-error__tips:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* Micro-animations: off for anyone who asks for reduced motion */
+@media (prefers-reduced-motion: no-preference) {
+  .scan-guide__chev {
+    transition: transform 0.3s var(--guide-ease);
+  }
+
+  .scan-guide__panel {
+    transition: grid-template-rows 0.35s var(--guide-ease);
+  }
+
+  .scan-guide__fold[data-open='true'] li {
+    animation: dash-fade 0.4s 0.1s var(--guide-ease) both;
+  }
+}
+
 /* ── Navbar component ──────────────────────────────────── */
 .navbar {
   position: fixed;
@@ -1479,7 +1659,8 @@ h6 {
 .result-card,
 .irr-form,
 .irr-result,
-.dash-card {
+.dash-card,
+.scan-guide {
   background: #fffdf8;
   border-color: rgba(45, 106, 79, 0.22);
   box-shadow: 0 8px 20px rgba(45, 106, 79, 0.08);
