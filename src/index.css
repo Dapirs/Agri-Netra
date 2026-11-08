@@ -1001,6 +1001,7 @@ h6 {
 .irr-result__numbers {
   display: grid;
   grid-template-rows: 0fr;
+  scroll-margin-bottom: 6rem; /* when scrolled into view, stop above the bottom nav */
 }
 
 .irr-result[data-open='true'] .irr-result__numbers {

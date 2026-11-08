@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, it, expect, afterEach } from 'vitest';
+import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest';
 import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import IrrigationResult from './IrrigationResult.jsx';
 
@@ -117,5 +117,60 @@ describe('IrrigationResult: the numbers stay folded away until asked for', () =>
 
     expect(toggle().getAttribute('aria-expanded')).toBe('false');
     expect(numbers().hasAttribute('inert')).toBe(true);
+  });
+});
+
+describe('IrrigationResult: opening the numbers brings them into view', () => {
+  let scrollIntoView;
+
+  beforeEach(() => {
+    // jsdom has no scrolling; record which element asked to be scrolled into view.
+    scrollIntoView = vi.fn();
+    Element.prototype.scrollIntoView = scrollIntoView;
+  });
+
+  afterEach(() => {
+    delete Element.prototype.scrollIntoView;
+  });
+
+  const slideEnds = (el, propertyName) => {
+    const event = new Event('transitionend', { bubbles: true });
+    Object.defineProperty(event, 'propertyName', { value: propertyName });
+    fireEvent(el, event);
+  };
+
+  it('scrolls the numbers into view once they finish sliding open', () => {
+    show();
+    numbers().style.transitionDuration = '0.35s'; // as in the real stylesheet
+
+    fireEvent.click(toggle());
+    expect(scrollIntoView).not.toHaveBeenCalled(); // still sliding
+
+    slideEnds(numbers().querySelector('.irr-result__row'), 'opacity'); // a row's own fade ends first
+    expect(scrollIntoView).not.toHaveBeenCalled();
+
+    slideEnds(numbers(), 'grid-template-rows');
+    expect(scrollIntoView).toHaveBeenCalledTimes(1);
+    expect(scrollIntoView.mock.contexts[0]).toBe(numbers());
+    expect(scrollIntoView).toHaveBeenCalledWith({ block: 'nearest' });
+  });
+
+  it('scrolls straight away when there is no slide (reduced motion)', () => {
+    show();
+
+    fireEvent.click(toggle());
+
+    expect(scrollIntoView).toHaveBeenCalledTimes(1);
+    expect(scrollIntoView.mock.contexts[0]).toBe(numbers());
+  });
+
+  it('does not scroll when the numbers are closed', () => {
+    show();
+    fireEvent.click(toggle());
+    scrollIntoView.mockClear();
+
+    fireEvent.click(toggle());
+
+    expect(scrollIntoView).not.toHaveBeenCalled();
   });
 });
