@@ -217,10 +217,6 @@ export default function Scanner({ onResult }) {
         // Preserve existing App/ResultCard expectations.
         label: mapped.disease,
         confidence: mapped.confidence * 100,
-        treatment: Array.isArray(mapped.treatment) ? mapped.treatment.join(' ') : mapped.treatment,
-        prevention: Array.isArray(mapped.prevention)
-          ? mapped.prevention.join(' ')
-          : mapped.prevention,
       });
     } catch (err) {
       console.error('[Scanner] Inference error:', err);

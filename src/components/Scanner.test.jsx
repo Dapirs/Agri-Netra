@@ -3,6 +3,7 @@ import { StrictMode } from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, cleanup, act, waitFor } from '@testing-library/react';
 import Scanner from './Scanner.jsx';
+import { TREATMENT_DB } from '../data/treatmentDB';
 
 // The model and image preprocessing load TensorFlow.js, which these tests don't need.
 // Tests that scan an image put a fake model in `mocks.model`.
@@ -385,6 +386,20 @@ describe('Scanner scanning', () => {
     const result = onResult.mock.calls[0][0];
     expect(result.isHealthy).toBe(true);
     expect(result.confidence).toBeCloseTo(97, 1);
+  });
+
+  it('passes the treatment and prevention steps on as separate steps, not one paragraph', async () => {
+    mocks.model = fakeModel(peaked(TOMATO_HEALTHY, 0.97));
+    const onResult = vi.fn();
+    const { container } = render(<Scanner onResult={onResult} />);
+
+    choose(container, imageOf(MB));
+    clickScan();
+    await waitFor(() => expect(onResult).toHaveBeenCalled());
+
+    const result = onResult.mock.calls[0][0];
+    expect(result.treatment).toEqual(TREATMENT_DB.Tomato___healthy.treatment);
+    expect(result.prevention).toEqual(TREATMENT_DB.Tomato___healthy.prevention);
   });
 
   it('asks for a clearer photo when the model is not at least 85% sure', async () => {
