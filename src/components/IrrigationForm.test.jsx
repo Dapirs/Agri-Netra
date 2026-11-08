@@ -105,6 +105,69 @@ describe('IrrigationForm: location', () => {
   });
 });
 
+const manualEntry = () => screen.getByText('Enter coordinates manually').closest('details');
+const failLocation = () =>
+  getCurrentPosition.mockImplementation((_onSuccess, onError) =>
+    onError({ message: 'User denied Geolocation' })
+  );
+
+describe('IrrigationForm: location first', () => {
+  it('offers "Use My Location" up front and folds the typed coordinates away', () => {
+    render(<IrrigationForm onSubmit={() => {}} />);
+
+    const location = screen.getByRole('group', { name: 'Location' });
+    const useMyLocation = screen.getByRole('button', { name: 'Use My Location' });
+
+    expect(location.contains(useMyLocation)).toBe(true);
+    expect(manualEntry().contains(useMyLocation)).toBe(false);
+    expect(manualEntry().contains(screen.getByLabelText('Latitude'))).toBe(true);
+    expect(manualEntry().open).toBe(false);
+  });
+
+  it('opens manual entry when the location cannot be found', () => {
+    failLocation();
+    render(<IrrigationForm onSubmit={() => {}} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Use My Location' }));
+
+    expect(manualEntry().open).toBe(true);
+  });
+
+  it('opens manual entry when the device has no location support', () => {
+    delete navigator.geolocation;
+    render(<IrrigationForm onSubmit={() => {}} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Use My Location' }));
+
+    expect(manualEntry().open).toBe(true);
+  });
+
+  it('opens manual entry again on a later failure, even after the user closed it', () => {
+    failLocation();
+    render(<IrrigationForm onSubmit={() => {}} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Use My Location' }));
+
+    manualEntry().open = false; // the user taps the fold shut
+    fireEvent(manualEntry(), new Event('toggle'));
+    fireEvent.click(screen.getByRole('button', { name: 'Use My Location' }));
+
+    expect(manualEntry().open).toBe(true);
+  });
+
+  it('shows "Location detected" as a success message, not in the error style', () => {
+    getCurrentPosition.mockImplementation((onSuccess) =>
+      onSuccess({ coords: { latitude: 12.97, longitude: 77.59 } })
+    );
+    render(<IrrigationForm onSubmit={() => {}} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Use My Location' }));
+
+    const status = screen.getByRole('status');
+    expect(status.textContent).toMatch(/Location detected/);
+    expect(status.className).not.toMatch(/error/);
+  });
+});
+
 describe('IrrigationForm: coordinate validation', () => {
   it.each([
     ['91', '77'],
