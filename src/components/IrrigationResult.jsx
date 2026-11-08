@@ -1,4 +1,4 @@
-import { useId, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 
 /* The decision, in plain words. Each state has its own word and icon, so the
    meaning never depends on the shade of green alone. */
@@ -29,6 +29,24 @@ const ADVICE = {
 export default function IrrigationResult({ result, ref }) {
   const [open, setOpen] = useState(false);
   const numbersId = useId();
+  const numbersRef = useRef(null);
+
+  // Opening the numbers can push them below the screen (or behind the bottom nav),
+  // so bring them into view: after the slide-open finishes, or at once with reduced motion.
+  useEffect(() => {
+    const numbers = numbersRef.current;
+    if (!open || !numbers) return;
+
+    const reveal = () => numbers.scrollIntoView?.({ block: 'nearest' });
+    if (!(parseFloat(getComputedStyle(numbers).transitionDuration) > 0)) {
+      reveal();
+      return;
+    }
+    // Only the box's own slide counts, not the rows fading in inside it.
+    const onSlideEnd = (event) => event.target === numbers && reveal();
+    numbers.addEventListener('transitionend', onSlideEnd);
+    return () => numbers.removeEventListener('transitionend', onSlideEnd);
+  }, [open]);
 
   if (!result) return null;
 
@@ -81,7 +99,7 @@ export default function IrrigationResult({ result, ref }) {
       </button>
 
       {/* Stays in the page so it can slide open; `inert` hides it from taps and screen readers */}
-      <div id={numbersId} className="irr-result__numbers" inert={!open}>
+      <div ref={numbersRef} id={numbersId} className="irr-result__numbers" inert={!open}>
         <div>
           <dl className="irr-result__rows">
             <div className="irr-result__row">
