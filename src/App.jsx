@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 
 import Navbar from './components/Navbar';
 import Scanner from './components/Scanner';
@@ -18,6 +18,17 @@ export default function App() {
   const [irrigationLoading, setIrrigationLoading] = useState(false);
   const [irrigationError, setIrrigationError] = useState(null);
   const [history, setHistory] = useState(getHistory);
+  const scanResultRef = useRef(null);
+  const irrigationResultRef = useRef(null);
+
+  /* ── Bring each new result into view (on a phone it appears below the screen) ── */
+  useEffect(() => {
+    scanResultRef.current?.scrollIntoView?.({ block: 'start' });
+  }, [scanResult]);
+
+  useEffect(() => {
+    irrigationResultRef.current?.scrollIntoView?.({ block: 'start' });
+  }, [irrigationResult]);
 
   /* ── Scan handler ───────────────────────────────────── */
   const handleScanResult = useCallback((result) => {
@@ -101,6 +112,7 @@ export default function App() {
             <Scanner onResult={handleScanResult} />
             {scanResult && (
               <ResultCard
+                ref={scanResultRef}
                 result={{
                   disease: scanResult.label,
                   confidence: scanResult.confidence,
@@ -123,7 +135,9 @@ export default function App() {
                 ⚠ {irrigationError}
               </p>
             )}
-            {irrigationResult && <IrrigationResult result={irrigationResult} />}
+            {irrigationResult && (
+              <IrrigationResult ref={irrigationResultRef} result={irrigationResult} />
+            )}
           </>
         )}
       </main>
